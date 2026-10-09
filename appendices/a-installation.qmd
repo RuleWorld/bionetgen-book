@@ -1,0 +1,57 @@
+# Installing the tools {#sec-installation}
+
+## No installation: BNG Playground
+
+[BNG Playground](https://ruleworld.github.io/bngplayground/) runs BioNetGen in
+a web browser. Paste any model from this book into its editor and click
+**Run**. It is the quickest way to try a model, and it works on any computer.
+
+## Visual Studio Code
+
+1. Install [Visual Studio Code](https://code.visualstudio.com).
+2. In the Extensions panel, search for **BioNetGen** and install it.
+3. Open a `.bngl` file and click the run button in the editor toolbar. Results
+   are written to a time-stamped folder and the main output (`.gdat`) opens in
+   a plot viewer.
+
+The extension needs Python and Perl. It installs PyBioNetGen, which contains
+BioNetGen itself, when first used. macOS and Linux include Perl. On Windows,
+install [Strawberry Perl](https://strawberryperl.com).
+
+To keep results out of your working folders, set
+`bngl.general.result_folder` in VS Code's settings to an absolute path, for
+example a `BNG-results` folder in your project.
+
+## Python
+
+The book's Python code uses three packages:
+
+- [bngsim](https://bngsim.readthedocs.io): fast ODE and stochastic simulation
+  of BioNetGen models, run in-process from Python.
+- [PyBioNetGen](https://pybionetgen.readthedocs.io): supplies BioNetGen, which
+  bngsim uses to turn a `.bngl` file into a reaction network.
+- `numpy`, `pandas`, and `matplotlib` for analysis and plotting.
+
+Install them with
+
+```bash
+pip install bngsim bionetgen numpy pandas matplotlib jupyter
+```
+
+or create the environment used to build this book:
+
+```bash
+conda env create -f environment.yml
+conda activate bionetgen-book
+```
+
+Check the installation by simulating the first model of @sec-reaction-networks:
+
+```python
+import bngsim
+model = bngsim.Model.from_bngl("models/ch01/stat_step1_binding.bngl")
+sim = bngsim.Simulator(model, method="ode")
+model.reset()
+result = sim.run(t_span=(0, 20), n_points=101)
+print(result.observables["LR"][-1])   # about 0.989
+```

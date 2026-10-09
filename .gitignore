@@ -1,0 +1,21 @@
+/_book/
+/.quarto/
+/_freeze/
+*_files/
+**/__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+# LaTeX build output
+/slides/*/build/
+/slides/*/build.log
+/figures/tikz/*.aux
+/figures/tikz/*.log
+/figures/tikz/*.pdf
+# BioNetGen run output
+/BNG-results/
+*.net
+*.gdat
+*.cdat
+
+**/*.quarto_ipynb
+/worksheets/keys/

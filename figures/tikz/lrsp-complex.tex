@@ -1,0 +1,17 @@
+\documentclass[border=3pt]{standalone}
+\input{common}
+\begin{document}
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \node[molbox,fill=fsGold!40,minimum width=1.4cm] (L) at (0,2.2) {L};
+  \node[site] (Lr) at (L.south) {r};
+  \node[molbox,fill=fsNavy!20,minimum width=1.8cm] (R) at (0,0.9) {R};
+  \node[site] (Rl) at (R.north) {l};
+  \node[site] (Rs) at (R.south) {s};
+  \node[molbox,fill=fsGreen!25,minimum width=2.2cm] (S) at (0,-0.4) {S};
+  \node[site] (Sr) at (S.north) {r};
+  \node[psite] (SY) at (S.east) {P};
+  \node[site] (Sg) at (S.south) {g};
+  \draw[bond] (Lr) -- (Rl) node[midway,right=3pt,font=\tiny\bfseries,text=fsAccent] {1};
+  \draw[bond] (Rs) -- (Sr) node[midway,right=3pt,font=\tiny\bfseries,text=fsAccent] {2};
+\end{tikzpicture}
+\end{document}

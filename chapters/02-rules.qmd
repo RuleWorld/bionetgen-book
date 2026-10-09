@@ -1,0 +1,492 @@
+# Molecules, patterns, and rules {#sec-rules}
+
+```{python}
+#| include: false
+import sys
+sys.path.insert(0, "../scripts")
+from bookutils import show_bngl, show_lines, model_path, rule_count
+import numpy as np
+import matplotlib.pyplot as plt
+import bngsim
+```
+
+In @sec-reaction-networks every species in the cytokine–STAT–SOCS model had a
+name: L, LR, LRS, LRS~p~, LR·SOCS. That worked for twelve species. It stops
+working as soon as the model includes what we actually know about the
+molecules involved, because signaling proteins have many binding and
+modification sites, and the number of ways those sites can be combined grows
+explosively. This chapter introduces the idea at the heart of rule-based
+modeling [@Hlavacek2006]. Molecules are represented as structured objects
+with sites and states. Interactions are written as **rules** that say which
+parts of a molecule matter. BioNetGen then generates the reaction network
+from the rules automatically.
+
+::: {.callout-note}
+## Learning goals
+
+After this chapter you should be able to:
+
+- explain why multi-site proteins lead to **combinatorial complexity**;
+- represent molecules with **components**, **states**, and **bonds** in BNGL;
+- read and write **patterns**, and use them to define observables;
+- write **reaction rules** and predict which reactions a rule generates;
+- describe how BioNetGen **generates a network** from rules, and when
+  network-free simulation is needed instead.
+:::
+
+## Signaling proteins have many interaction sites
+
+@fig-stat-domains shows the domain structure of STAT3. Its SH2 domain binds
+phosphotyrosines on activated receptors. Tyrosine 705, near the C terminus, is
+phosphorylated by JAK, and the phosphorylated tyrosine of one STAT binds the
+SH2 domain of another to form an active dimer. Serine 727, in the
+transactivation domain, is phosphorylated separately and modulates
+transcriptional activity. The N-terminal and coiled-coil regions mediate
+further interactions and nuclear transport, and the DNA-binding domain binds
+promoters.
+
+![Domain structure of STAT3. Each domain or modification site can interact or change state largely independently of the others.](../figures/stat-domains){#fig-stat-domains width=75%}
+
+The receptor and JAK have their own sets of sites, and so does nearly every
+signaling protein. Sites can be occupied or modified **in combination**. A
+protein with $n$ independent sites, each with two states, has $2^n$ possible
+states. Complexes multiply the counts of their parts. This is
+**combinatorial complexity**. In a model of the ErbB receptor family with its
+known binding partners, a single ErbB1 homodimer can take more than $5\times
+10^{10}$ distinct states, and an ErbB1–ErbB3 heterodimer more than $3.8\times
+10^9$ [@Creamer2012]. No one can name that many species.
+
+Yet most interactions depend on only one or two sites. Whether SOCS binds the
+receptor does not depend on whether a STAT molecule elsewhere in the complex
+is phosphorylated on serine 727. Rule-based modeling exploits this: each
+interaction is written once, mentioning only the sites it depends on, and
+applies to every complex that has those sites in the required states.
+
+## Molecules with structure
+
+In BNGL a **molecule** is a named object with a list of **components** in
+parentheses. Components represent binding sites or modification sites. A
+component can have a set of allowed **states**, written after `~`. The STAT
+molecule in our model is declared as
+
+```bngl
+begin molecule types
+  S(r,Y~0~P,g)
+end molecule types
+```
+
+It has a site `r` that binds the receptor, a tyrosine `Y` that is either
+unphosphorylated (`0`) or phosphorylated (`P`), and a site `g` that binds DNA
+(@fig-stat-molecule). A component can have both a state and a bond. A
+molecule with no components, such as `mSOCS()`, is just a species name, as in
+@sec-reaction-networks.
+
+![The STAT molecule type S(r,Y~0~P,g).](../figures/stat-molecule){#fig-stat-molecule width=55%}
+
+## Complexes are graphs
+
+Molecules join into complexes through **bonds** between components. The
+species LRS~p~ from @sec-reaction-networks, a ligand-bound receptor carrying
+phosphorylated STAT, is written
+
+```bngl
+L(r!1).R(l!1,s!2).S(r!2,Y~P,g)
+```
+
+The dot (`.`) joins molecules in the same complex. A bond is written as `!`
+followed by a label on each of its two ends: `!1` on the ligand's `r` and on
+the receptor's `l` says those two components are bound to each other. Bond
+labels only need to be unique within a species. A component with no `!`, like
+`g` here, is **free**.
+
+![The complex L(r!1).R(l!1,s!2).S(r!2,Y~P,g). Molecules are nodes, components are attached to them, and bonds are edges between components.](../figures/lrsp-complex){#fig-lrsp width=28%}
+
+A species is therefore a **graph** (@fig-lrsp). Many strings describe the
+same graph: molecules can be listed in any order and bonds numbered in any
+way. BioNetGen recognizes when two strings describe the same species by
+comparing graphs, not strings.
+
+## Patterns
+
+A **pattern** describes a set of species by listing only the parts that
+matter. The guiding principle is **don't write, don't care**: any component
+not mentioned in a pattern may be in any state and bound or not. Within a
+pattern:
+
+- a component with no bond notation must be **free**;
+- `!+` means bound to something, it doesn't matter what;
+- `!?` means bound or not;
+- a state such as `~P` must match exactly.
+
+A pattern matches a species if it can be found anywhere in the species'
+graph. @tbl-patterns shows which species from @sec-reaction-networks match
+several patterns.
+
+| Pattern | LR | LRS | LRS~p~ | S~p~ | GS~p~ | LR·SOCS | Meaning |
+|------------|:---:|:---:|:----:|:---:|:----:|:-------:|----------------------------|
+| `S(Y~P)`   | | | $\checkmark$ | $\checkmark$ | $\checkmark$ | | any phosphorylated STAT |
+| `S(r,Y~P)` | | | | $\checkmark$ | $\checkmark$ | | phosphorylated, not on a receptor |
+| `S(r!+)`   | | $\checkmark$ | $\checkmark$ | | | | STAT bound through `r` |
+| `R(l!+)`   | $\checkmark$ | $\checkmark$ | $\checkmark$ | | | $\checkmark$ | ligand-bound receptor |
+| `R(l!+,s)` | $\checkmark$ | | | | | | … with its docking site free |
+| `R(s!+)`   | | $\checkmark$ | $\checkmark$ | | | $\checkmark$ | docking site occupied |
+
+: Patterns and the species they match. {#tbl-patterns}
+
+### Observables are patterns
+
+Observables are defined by patterns, which solves the bookkeeping problem we
+met in @sec-reaction-networks. There, total pSTAT had to be defined by listing
+every species that contains it:
+
+```bngl
+Molecules pSTAT LRSp Sp GSp
+```
+
+With structured molecules we describe the property instead:
+
+```bngl
+Molecules pSTAT S(Y~P)
+```
+
+The pattern keeps working when we add new complexes that contain pSTAT. No
+observable needs to be rewritten.
+
+There are two kinds of observable. A `Molecules` observable counts every
+**match** of its pattern, so a STAT dimer with two phosphotyrosines
+contributes 2 to `S(Y~P)`. A `Species` observable counts each matching
+**complex** once:
+
+```bngl
+Species pSTATdimer S(d!1).S(d!1)
+```
+
+## Rules
+
+A **reaction rule** has the same form as a reaction, but its reactants and
+products are patterns. Here is the rule for STAT recruitment:
+
+```bngl
+Sbind: R(l!+,s) + S(r,Y~0) <-> R(l!+,s!1).S(r!1,Y~0)  kSon, kSoff
+```
+
+- The **reactant patterns** on the left say what must be present: a
+  ligand-bound receptor whose docking site `s` is free, and an
+  unphosphorylated STAT whose site `r` is free.
+- The **product pattern** on the right says what changes: a bond forms
+  between `s` and `r`.
+- Everything not mentioned is carried along unchanged. If the receptor were
+  part of a larger complex, the whole complex would take part.
+- Each reaction generated by the rule gets the rule's rate constant, and its
+  rate follows mass action.
+
+The parts of a reactant pattern that are not changed by the rule, here
+`l!+` and the state `Y~0`, are its **context**. Context restricts where a rule
+applies. A rule can do five things:
+
+| Operation | Example |
+|---|---|
+| form a bond | `A(b) + B(a) -> A(b!1).B(a!1)` |
+| break a bond | `A(b!1).B(a!1) -> A(b) + B(a)` |
+| change a state | `S(Y~0) -> S(Y~P)` |
+| create a molecule | `G(s!+) -> G(s!+) + mSOCS()` |
+| delete a molecule | `SOCS(r) -> 0` |
+
+## The Module 1 model as rules
+
+We now rewrite the model of @sec-reaction-networks with structured molecules.
+Six molecule types replace twelve species names, and **seed species** list
+the complexes present at the start. Every other species will be generated
+from these by the rules.
+
+```{python}
+#| echo: false
+#| output: asis
+show_bngl("ch02", "stat_rbm1_rules", start="begin molecule types", end="end observables")
+```
+
+The receptor has a single docking site `s` that STAT and SOCS compete for,
+which is how the model of @sec-reaction-networks treats SOCS. The rules are:
+
+```{python}
+#| echo: false
+#| output: asis
+show_bngl("ch02", "stat_rbm1_rules", start="begin reaction rules", end="end reaction rules")
+```
+
+Context encodes the assumptions of the earlier model. `R(l,s)` in `LRbind`
+says that ligand binds and leaves only when the docking site is empty, so
+ligand can leave LR but not LRS. `R(l!+,s)` in `Sbind` and `SOCSbind` says
+that only ligand-bound receptors recruit STAT or SOCS.
+
+### Network generation
+
+BioNetGen turns rules into a reaction network by **network generation**:
+
+1. Start with the seed species.
+2. Apply every rule to every species, or pair of species, that matches its
+   reactant patterns.
+3. Add any new species and reactions produced.
+4. Repeat until nothing new appears.
+
+The `generate_network` action does this and writes the result to a `.net`
+file. ODE and stochastic simulations then use the generated network. bngsim's
+`Model.from_bngl` also generates the network, so we can check the result
+directly:
+
+```{python}
+named = bngsim.Model.from_bngl(model_path("ch01", "stat_step6_feedback"))
+rules = bngsim.Model.from_bngl(model_path("ch02", "stat_rbm1_rules"))
+print("named species:", named.n_species, "species,", named.n_reactions, "reactions")
+print("rule-based:   ", rules.n_species, "species,", rules.n_reactions, "reactions")
+for name in rules.species_names:
+    print("  ", name)
+```
+
+The rules generate exactly the same 12 species and 15 reactions as the
+hand-written network, now with structured names. @fig-equivalent confirms that
+the two models give identical dynamics.
+
+```{python}
+#| label: fig-equivalent
+#| fig-cap: "The rule-based model generates the same network as the model of @sec-reaction-networks, so their predictions are identical."
+#| code-fold: true
+for model, style, label in [(named, dict(color="#D39B1E", lw=6), "named species (Chapter 1)"),
+                            (rules, dict(color="#1B365D", lw=1.5), "rules (this chapter)")]:
+    sim = bngsim.Simulator(model, method="ode")
+    model.reset()
+    r = sim.run(t_span=(0, 120), n_points=1201)
+    plt.plot(r.time, r.observables["pSTAT"], label=label, **style)
+plt.xlabel("time (min)")
+plt.ylabel("total pSTAT (µM)")
+plt.legend();
+```
+
+## Relaxing the assumptions
+
+The value of rules becomes clear when we make the model more realistic. We
+relax the simplifying assumptions one at a time. Each version is a separate
+file in `models/ch02/`, and each changes only a few lines.
+
+### Ligand can leave any receptor complex
+
+Removing the context `s` from the ligand rule lets ligand bind and unbind
+whatever the receptor's docking site is doing:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch02", "stat_rbm2_ligand_release", "LRbind:")
+```
+
+STAT docking and activation still require bound ligand, but STAT can undock
+from a receptor that has lost its ligand. A reversible rule applies the same
+context in both directions, so the binding and unbinding of STAT (and of SOCS)
+are now written as separate rules:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch02", "stat_rbm2_ligand_release", "Sbind:", "Sunbind:", "Sact:")
+```
+
+**One rule now generates many reactions.** `LRbind` generates four binding
+reactions, one each for ligand binding to R alone, to R·S, to R·S~p~, and to
+R·SOCS, and four matching unbinding reactions. None of these reactions had to
+be written by hand.
+
+### SOCS binds its own site and blocks kinase activity
+
+In the first model SOCS blocks STAT docking by occupying the same site. Real
+SOCS proteins act differently: SOCS1 inhibits JAK directly, and SOCS3
+inhibits JAK while bound to the receptor. We give the receptor a separate
+SOCS site and require it to be free for STAT activation:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch02", "stat_rbm3_socs_site", "R(l,s,socs)  ", "Sact:", "SOCSbind:", "SOCSunbind:")
+```
+
+The free `socs` component in `Sact` means that activation happens only when
+SOCS is absent. A receptor can now carry STAT and SOCS at the same time.
+
+### Cytokines bring two receptor chains together
+
+Most cytokine receptors signal as dimers: the ligand has two binding sites,
+and JAKs on the two receptor chains activate each other. We give the ligand
+two identical sites and require the dimer for activation (@fig-dimer):
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch02", "stat_rbm4_receptor_dimer", "L(r,r)  ", "LRbind:", "Crosslink:", "Sact:")
+```
+
+![A cytokine bridging two receptor chains, each carrying a STAT.](../figures/receptor-dimer){#fig-dimer width=24%}
+
+Two details deserve attention. First, the ligand's two sites are identical,
+and BioNetGen accounts for this automatically: a free ligand can bind a
+receptor through either site, so the generated reaction has a statistical
+factor of 2. Second, a bivalent ligand in large excess occupies receptor
+chains one at a time and prevents crosslinking, so the response falls at high
+dose. This version therefore lowers $L_0$ from 10 to 1 µM.
+
+### STATs act as dimers
+
+Phosphorylated STATs form dimers, and it is the dimer that binds DNA. We add
+a dimerization site and let free pSTAT dimerize. Only dimers bind the SOCS
+promoter, and only monomers are dephosphorylated:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch02", "stat_rbm5_stat_dimer", "S(r,Y~0~P,d,g)", "Sdimer:", "Gbind:", "Sdephos:")
+```
+
+`S(d!+,g)` matches any STAT that is in a dimer and not yet on DNA. We
+restricted dimerization to free pSTAT. If receptor-bound STATs could dimerize
+too, dimers could bridge receptor complexes into chains of any length, and the
+network would be **infinite**. Network generation would never finish unless
+limited, for example with the `max_agg` option, which caps the size of
+complexes.
+
+### A second phosphorylation site
+
+STAT3 is also phosphorylated on serine 727, independently of tyrosine 705.
+We add one component and **one** rule:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch02", "stat_rbm6_ser727", "S(r,Y~0~P,S727~0~P,d,g)", "Sser:")
+```
+
+The rule mentions only `S727`, so it applies to STAT in every complex: free,
+on the receptor, in a dimer, and on DNA. Every species containing one STAT now
+comes in two versions, and every species containing two STATs in three or
+four.
+
+## Rules grow linearly; networks grow combinatorially
+
+@tbl-sizes counts the rules in each version and the species and reactions
+that BioNetGen generates from them.
+
+```{python}
+#| label: tbl-sizes
+#| tbl-cap: "Rules in each model version and the size of the generated network."
+#| code-fold: true
+import pandas as pd
+versions = [("stat_rbm1_rules", "Module 1 model as rules"),
+            ("stat_rbm2_ligand_release", "ligand leaves any complex"),
+            ("stat_rbm3_socs_site", "separate SOCS site"),
+            ("stat_rbm4_receptor_dimer", "receptor dimers"),
+            ("stat_rbm5_stat_dimer", "STAT dimers"),
+            ("stat_rbm6_ser727", "Ser727 site")]
+rows, models = [], {}
+for i, (name, change) in enumerate(versions, start=1):
+    m = bngsim.Model.from_bngl(model_path("ch02", name))
+    models[i] = m
+    rows.append({"version": i, "change": change, "rules": rule_count("ch02", name),
+                 "species": m.n_species, "reactions": m.n_reactions})
+sizes = pd.DataFrame(rows).set_index("version")
+sizes
+```
+
+```{python}
+#| label: fig-sizes
+#| fig-cap: "From 11 to 16 rules, the generated network grows from 15 to 663 reactions."
+#| code-fold: true
+for col, marker in [("reactions", "o"), ("species", "s"), ("rules", "^")]:
+    plt.semilogy(sizes.index, sizes[col], marker=marker, label=col)
+plt.xlabel("model version")
+plt.ylabel("count")
+plt.xticks(sizes.index)
+plt.legend();
+```
+
+Five relaxed assumptions added five rules but grew the network more than
+fortyfold. Writing 663 reactions and the ODEs for 95 species by hand would be
+slow and error-prone. Rules let us write down the mechanism and leave the
+bookkeeping to the software.
+
+## Mechanistic details change the predictions
+
+Each version embodies a different hypothesis about the mechanism, and the
+hypotheses make different predictions (@fig-versions).
+
+```{python}
+#| label: fig-versions
+#| fig-cap: "Total pSTAT in four versions of the model. All show a SOCS-driven pulse, but its shape depends on the mechanism."
+#| code-fold: true
+labels = {1: "1: Module 1 model", 3: "3: SOCS blocks the kinase",
+          4: "4: receptor dimers", 5: "5: STAT dimers"}
+for i, label in labels.items():
+    m = models[i]
+    sim = bngsim.Simulator(m, method="ode")
+    m.reset()
+    r = sim.run(t_span=(0, 120), n_points=1201)
+    plt.plot(r.time, r.observables["pSTAT"], label=label)
+plt.xlabel("time (min)")
+plt.ylabel("total pSTAT (µM)")
+plt.legend();
+```
+
+All versions show the SOCS-driven pulse. Blocking the kinase (version 3) gives
+a lower peak and a faster shutoff than blocking docking (version 1).
+Dimerization (version 5) protects pSTAT from the phosphatase, so the response
+lasts much longer. Which mechanism is right is a question for experiments.
+Rules make it easy to build the alternatives and compare their predictions,
+which is the first step in designing the experiments that tell them apart.
+
+## When networks are too large to generate
+
+Network generation works well when the network is small, but realistic
+models can imply far more species than can be listed. A rule-based model of T
+cell receptor signaling with 20 molecule types and 129 rules
+[@Chylek2014], and the ErbB model mentioned above [@Creamer2012], are too
+large for network generation. Some models, like the STAT model with
+dimerization on receptors, are infinite.
+
+**Network-free simulation** avoids generating the network at all. It tracks
+individual molecules and their bonds, and applies rules to them as the
+simulation runs, so only the complexes that actually form are ever
+represented [@Sneddon2011]. The cost per simulated event depends on the
+number of rules and molecules rather than the size of the network. The
+trade-offs are that network-free simulation is stochastic and works with
+molecule counts rather than concentrations. bngsim provides two network-free
+simulators, and a later chapter covers them in detail.
+
+## Summary
+
+- Multi-site proteins create **combinatorial complexity**: a few interactions
+  imply many species and reactions.
+- BNGL represents molecules as objects with **components**, **states**, and
+  **bonds**. Species are graphs.
+- **Patterns** specify only what matters (don't write, don't care), and
+  define observables that stay correct as a model grows.
+- **Rules** transform patterns. One rule generates every reaction that fits
+  its pattern, and context restricts where it applies.
+- BioNetGen **generates the network** from rules for ODE and stochastic
+  simulation. Network-free methods simulate models whose networks are too
+  large to generate.
+
+## Exercises
+
+1. In `stat_rbm1_rules.bngl`, change `R(l,s)` to `R(l)` in `LRbind`. Generate
+   the network. Which new species appear, and why?
+2. Write an observable for receptors that carry both STAT and SOCS in
+   `stat_rbm3_socs_site.bngl`. Should it be a `Molecules` or a `Species`
+   observable?
+3. In `stat_rbm4_receptor_dimer.bngl`, vary `L0` from 0.01 to 100 µM and plot the
+   peak of total pSTAT against `L0`. Explain the shape of the curve.
+4. Remove the `r` context from `Sdimer` in `stat_rbm5_stat_dimer.bngl`, so that
+   receptor-bound pSTAT can dimerize. What happens when you generate the
+   network? Try adding `max_agg=>6` to `generate_network`.
+
+## Further reading
+
+@Hlavacek2006 reviews the motivation for rule-based modeling and its
+applications. @Faeder2009 and @Sekar2012 cover BNGL syntax and modeling
+practice in depth, including many examples of rules for common signaling
+mechanisms. @Sneddon2011 introduces network-free simulation with NFsim.

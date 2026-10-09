@@ -1,0 +1,9 @@
+# Conda environment for building the book:
+#   conda env create -f environment.yml && conda activate bionetgen-book
+name: bionetgen-book
+channels: [conda-forge]
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -r requirements.txt

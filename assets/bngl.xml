@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language>
+<!-- KDE syntax definition for the BioNetGen language (BNGL), used by Quarto/Pandoc. -->
+<language name="BNGL" section="Scientific" version="1" kateversion="5.0"
+          extensions="*.bngl" mimetype="text/x-bngl" casesensitive="1" license="MIT">
+  <highlighting>
+    <list name="blocks">
+      <item>begin</item>
+      <item>end</item>
+      <item>model</item>
+      <item>parameters</item>
+      <item>molecule</item>
+      <item>types</item>
+      <item>seed</item>
+      <item>species</item>
+      <item>observables</item>
+      <item>functions</item>
+      <item>reaction</item>
+      <item>rules</item>
+      <item>compartments</item>
+      <item>energy</item>
+      <item>patterns</item>
+      <item>population</item>
+      <item>maps</item>
+      <item>actions</item>
+    </list>
+    <list name="observabletypes">
+      <item>Molecules</item>
+      <item>Species</item>
+    </list>
+    <list name="actions">
+      <item>generate_network</item>
+      <item>simulate</item>
+      <item>simulate_ode</item>
+      <item>simulate_ssa</item>
+      <item>simulate_nf</item>
+      <item>simulate_pla</item>
+      <item>parameter_scan</item>
+      <item>bifurcate</item>
+      <item>setParameter</item>
+      <item>setConcentration</item>
+      <item>addConcentration</item>
+      <item>saveConcentrations</item>
+      <item>resetConcentrations</item>
+      <item>saveParameters</item>
+      <item>resetParameters</item>
+      <item>writeSBML</item>
+      <item>writeXML</item>
+      <item>writeMfile</item>
+      <item>writeMexfile</item>
+      <item>writeNetwork</item>
+      <item>visualize</item>
+      <item>readFile</item>
+      <item>setOption</item>
+      <item>setModelName</item>
+    </list>
+    <contexts>
+      <context name="Normal" attribute="Normal Text" lineEndContext="#stay">
+        <DetectChar char="#" attribute="Comment" context="Comment"/>
+        <DetectChar char="&quot;" attribute="String" context="String"/>
+        <keyword attribute="Keyword" String="blocks"/>
+        <keyword attribute="DataType" String="observabletypes"/>
+        <keyword attribute="Function" String="actions"/>
+        <StringDetect String="&lt;-&gt;" attribute="Operator"/>
+        <StringDetect String="-&gt;" attribute="Operator"/>
+        <StringDetect String="=&gt;" attribute="Operator"/>
+        <RegExpr String="![0-9]+|!\+|!\?" attribute="Special Char"/>
+        <RegExpr String="~[A-Za-z0-9_]+" attribute="Constant"/>
+        <RegExpr String="^\s*[A-Za-z_][A-Za-z0-9_]*\s*:" attribute="Label"/>
+        <Float attribute="Float"/>
+        <Int attribute="Decimal"/>
+      </context>
+      <context name="Comment" attribute="Comment" lineEndContext="#pop"/>
+      <context name="String" attribute="String" lineEndContext="#pop">
+        <DetectChar char="&quot;" attribute="String" context="#pop"/>
+      </context>
+    </contexts>
+    <itemDatas>
+      <itemData name="Normal Text" defStyleNum="dsNormal"/>
+      <itemData name="Keyword" defStyleNum="dsKeyword"/>
+      <itemData name="DataType" defStyleNum="dsDataType"/>
+      <itemData name="Function" defStyleNum="dsFunction"/>
+      <itemData name="Operator" defStyleNum="dsOperator"/>
+      <itemData name="Special Char" defStyleNum="dsSpecialChar"/>
+      <itemData name="Constant" defStyleNum="dsConstant"/>
+      <itemData name="Label" defStyleNum="dsAttribute"/>
+      <itemData name="Float" defStyleNum="dsFloat"/>
+      <itemData name="Decimal" defStyleNum="dsDecVal"/>
+      <itemData name="Comment" defStyleNum="dsComment"/>
+      <itemData name="String" defStyleNum="dsString"/>
+    </itemDatas>
+  </highlighting>
+  <general>
+    <comments>
+      <comment name="singleLine" start="#"/>
+    </comments>
+    <keywords casesensitive="1"/>
+  </general>
+</language>

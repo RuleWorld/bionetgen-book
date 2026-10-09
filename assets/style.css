@@ -1,0 +1,6 @@
+/* Small adjustments to the cosmo theme. */
+:root { --rbm-navy: #1B365D; --rbm-accent: #C8102E; }
+h1, h2, h3 { color: var(--rbm-navy); }
+.callout.callout-style-default { border-left-width: 4px; }
+figure.figure img { max-width: 100%; }
+div.sourceCode { font-size: 0.9em; }

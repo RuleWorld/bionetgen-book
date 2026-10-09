@@ -1,0 +1,9 @@
+bngsim>=0.16
+bionetgen>=0.8.7
+numpy
+pandas
+matplotlib
+jupyter
+nbclient
+ipykernel
+quarto-cli  # local builds; CI installs Quarto separately

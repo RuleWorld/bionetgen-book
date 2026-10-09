@@ -1,0 +1,55 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Rule-Based Modeling of Biological Systems"
+  subtitle: "Theory and practice with BioNetGen"
+  author: "James R. Faeder"
+  date: last-modified
+  repo-url: https://github.com/RuleWorld/bionetgen-book
+  repo-actions: [issue, source]
+  downloads: [pdf]
+  search: true
+  chapters:
+    - index.qmd
+    - part: "Foundations"
+      chapters:
+        - chapters/01-reaction-networks.qmd
+        - chapters/02-rules.qmd
+    - references.qmd
+  appendices:
+    - appendices/a-installation.qmd
+
+bibliography: references.bib
+syntax-definitions:
+  - assets/bngl.xml
+
+execute:
+  freeze: false
+  warning: false
+
+format:
+  html:
+    theme: cosmo
+    css: assets/style.css
+    code-copy: true
+    code-overflow: wrap
+    fig-format: svg
+    default-image-extension: svg
+    number-depth: 2
+  pdf:
+    documentclass: scrreprt
+    papersize: letter
+    fontsize: 11pt
+    geometry: [margin=1in]
+    code-block-bg: "#f6f8fa"
+    fig-format: pdf
+    default-image-extension: pdf
+    fig-pos: "H"
+    include-in-header:
+      text: |
+        \usepackage{float}
+        \usepackage{fvextra}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,breakanywhere,commandchars=\\\{\}}
+        \fvset{breaklines=true,breakanywhere=true}

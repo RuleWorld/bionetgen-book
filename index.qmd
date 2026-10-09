@@ -1,0 +1,77 @@
+# Preface {.unnumbered}
+
+Cells process information with networks of interacting proteins, genes, and
+small molecules. To understand how these networks behave, we write down what
+we know about their parts and interactions and ask what that knowledge
+implies. Mathematical models make that question precise. This book teaches
+one powerful way to build them: **rule-based modeling** with the
+[BioNetGen](https://bionetgen.org) language and tools
+[@Blinov2004; @Faeder2009; @Harris2016].
+
+## Who this book is for
+
+The book has three audiences in mind:
+
+- **Students** in courses on computational and systems biology. The early
+  chapters assume a little calculus and some Python, but no prior modeling
+  experience.
+- **New members of a modeling lab** who need to become productive with
+  rule-based models: building them, simulating them, fitting them to data, and
+  sharing them.
+- **Experimental and computational biologists** who want a practical
+  introduction to the BioNetGen tools.
+
+## How the book is organized
+
+Each chapter introduces one set of ideas and applies them to a running
+example: a cytokine signaling circuit in which STAT transcription factors
+induce their own inhibitor, SOCS. Chapter 1 builds this circuit one reaction
+at a time and shows how reaction networks become differential equations.
+Chapter 2 shows why naming every molecular complex by hand breaks down, and
+how rules that act on structured molecules solve the problem. Later chapters
+add stochastic effects, compartments, network-free simulation, model analysis,
+and fitting models to data. The plan for the full book is in
+[`BOOK_PLAN.md`](https://github.com/RuleWorld/bionetgen-book/blob/main/BOOK_PLAN.md).
+
+Every model in the book is in the
+[`models/`](https://github.com/RuleWorld/bionetgen-book/tree/main/models)
+folder of the book's repository, organized by chapter, and every figure is
+produced by running those models. Each chapter also has lecture slides and
+exercises.
+
+## Tools
+
+You can run every model in this book in three ways:
+
+1. In a **web browser**, with no installation, using
+   [BNG Playground](https://ruleworld.github.io/bngplayground/).
+2. In **Visual Studio Code** with the BioNetGen extension, which provides
+   syntax highlighting, one-click simulation, and plotting.
+3. From **Python**, using [bngsim](https://bngsim.readthedocs.io) for fast ODE
+   and stochastic simulation. This is how the figures in the book are made, and
+   it is the route to the analysis and fitting covered in later chapters.
+
+@sec-installation explains how to install the tools.
+
+## Conventions
+
+BNGL code is shown in shaded blocks:
+
+```bngl
+begin reaction rules
+  LRbind: L(r) + R(l) <-> L(r!1).R(l!1) kon, koff
+end reaction rules
+```
+
+Python code that produces a figure is shown above the figure in the web
+version of the book. Unless stated otherwise, concentrations are in
+micromolar (µM) and time is in minutes. The parameter values in the running
+example are illustrative, chosen to show the behavior clearly rather than
+fitted to a particular cell type.
+
+## License
+
+The text and figures are licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), and the code and
+models under the MIT License. You are free to reuse and adapt them with
+attribution.
