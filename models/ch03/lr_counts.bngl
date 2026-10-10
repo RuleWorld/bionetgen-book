@@ -1,0 +1,41 @@
+# Ligand-receptor binding in molecule numbers, for stochastic simulation.
+# Concentrations (uM) and rate constants (1/uM/min) are converted to molecule
+# numbers and per-molecule rate constants with NAV, the number of molecules per
+# uM in the reaction volume: NAV = 6.022e23 * 1e-6 * V for V in liters.
+# NAV = 100 corresponds to V = 0.17 fL; a 1 pL mammalian cell has NAV = 6.0e5.
+
+begin model
+
+begin parameters
+  NAV      100               # molecules per uM in the reaction volume
+  L0_uM    1                 # ligand (uM)
+  R0_uM    1                 # receptor (uM)
+  kon_uM   1                 # binding (1/uM/min)
+  koff     0.1               # unbinding (1/min)
+  L0       rint(L0_uM*NAV)   # ligand (molecules)
+  R0       rint(R0_uM*NAV)   # receptor (molecules)
+  kon      kon_uM/NAV        # binding (1/molecule/min)
+end parameters
+
+begin molecule types
+  L(r)
+  R(l)
+end molecule types
+
+begin seed species
+  L(r)  L0
+  R(l)  R0
+end seed species
+
+begin observables
+  Molecules LR  L(r!1).R(l!1)
+end observables
+
+begin reaction rules
+  LRbind: L(r) + R(l) <-> L(r!1).R(l!1)  kon, koff
+end reaction rules
+
+end model
+
+generate_network({overwrite=>1})
+simulate({method=>"ssa",t_end=>20,n_steps=>200})

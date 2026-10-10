@@ -539,7 +539,7 @@ contain only one or two copies of the SOCS gene and a handful of mRNA
 molecules. At such small numbers the random timing of individual reactions
 matters, and genetically identical cells respond differently. The same
 reaction network can be simulated stochastically, which is the subject of
-Chapter 3.
+@sec-stochastic.
 
 ## Summary
 

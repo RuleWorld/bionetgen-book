@@ -1,0 +1,37 @@
+# Two-state ("telegraph") model of gene expression. The promoter switches
+# between an inactive and an active state; mRNA is made only from the active
+# state and is degraded. Mean mRNA = ktx*kact/(kact+kinact)/kdeg = 20.
+
+begin model
+
+begin parameters
+  kact     0.05    # promoter activation (1/min)
+  kinact   0.05    # promoter inactivation (1/min)
+  ktx      4       # transcription from the active promoter (1/min)
+  kdeg     0.1     # mRNA degradation (1/min)
+end parameters
+
+begin molecule types
+  Gene(p~off~on)
+  mRNA()
+end molecule types
+
+begin seed species
+  Gene(p~off)  1
+end seed species
+
+begin observables
+  Molecules GeneOn  Gene(p~on)
+  Molecules mRNA    mRNA()
+end observables
+
+begin reaction rules
+  Switch:     Gene(p~off) <-> Gene(p~on)        kact, kinact
+  Transcribe: Gene(p~on) -> Gene(p~on) + mRNA()  ktx
+  Degrade:    mRNA() -> 0                       kdeg
+end reaction rules
+
+end model
+
+generate_network({overwrite=>1})
+simulate({method=>"ssa",t_end=>500,n_steps=>500})

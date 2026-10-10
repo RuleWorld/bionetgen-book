@@ -1,0 +1,73 @@
+# The cytokine-STAT-SOCS model of Chapter 2 (stat_rbm1_rules.bngl) in molecule
+# numbers, with a single copy of the SOCS gene. Concentrations (uM) and
+# rate constants (1/uM/min) are converted with NAV, the number of molecules per
+# uM in the reaction volume. NAV = 1000 (V = 1.7 fL) keeps simulations short;
+# a 1 pL mammalian cell has NAV = 6.0e5. Gene-expression parameters are set so
+# that the single gene gives about 20 SOCS mRNA molecules when fully induced.
+
+begin model
+
+begin parameters
+  NAV       1000             # molecules per uM in the reaction volume
+  L0        rint(10*NAV)     # ligand (molecules)
+  R0        rint(1*NAV)      # receptor (molecules)
+  S0        rint(10*NAV)     # STAT (molecules)
+  G0        1                # SOCS gene copies
+  kon       1/NAV            # ligand binding (1/molecule/min)
+  koff      0.1              # ligand unbinding (1/min)
+  kSon      1/NAV            # STAT binding (1/molecule/min)
+  kSoff     1                # STAT unbinding (1/min)
+  kact      1                # STAT activation (1/min)
+  kdiss     1                # pSTAT release (1/min)
+  kdephos   0.1              # pSTAT dephosphorylation (1/min)
+  kGon      1/NAV            # pSTAT-promoter binding (1/molecule/min)
+  kGoff     1                # pSTAT-promoter unbinding (1/min)
+  ktx       2.5              # transcription from the bound promoter (1/min)
+  kmdeg     0.1              # mRNA degradation (1/min)
+  ktl       12               # translation (1/min)
+  kSOCSdeg  0.05             # SOCS degradation (1/min)
+  kSOCSon   1/NAV            # SOCS-receptor binding (1/molecule/min)
+  kSOCSoff  0.01             # SOCS-receptor unbinding (1/min)
+end parameters
+
+begin molecule types
+  L(r)
+  R(l,s)
+  S(r,Y~0~P,g)
+  G(s)
+  mSOCS()
+  SOCS(r)
+end molecule types
+
+begin seed species
+  L(r)          L0
+  R(l,s)        R0
+  S(r,Y~0,g)    S0
+  G(s)          G0
+end seed species
+
+begin observables
+  Molecules pSTAT     S(Y~P)
+  Molecules GeneOn    G(s!+)
+  Molecules mSOCS     mSOCS()
+  Molecules SOCS      SOCS()
+end observables
+
+begin reaction rules
+  LRbind:     L(r) + R(l,s) <-> L(r!1).R(l!1,s)                kon, koff
+  Sbind:      R(l!+,s) + S(r,Y~0) <-> R(l!+,s!1).S(r!1,Y~0)    kSon, kSoff
+  Sact:       R(s!1).S(r!1,Y~0) -> R(s!1).S(r!1,Y~P)           kact
+  Srelease:   R(s!1).S(r!1,Y~P) -> R(s) + S(r,Y~P)             kdiss
+  Sdephos:    S(r,g,Y~P) -> S(r,g,Y~0)                         kdephos
+  Gbind:      S(r,Y~P,g) + G(s) <-> S(r,Y~P,g!1).G(s!1)        kGon, kGoff
+  Transcribe: G(s!+) -> G(s!+) + mSOCS()                       ktx
+  mRNAdeg:    mSOCS() -> 0                                     kmdeg
+  Translate:  mSOCS() -> mSOCS() + SOCS(r)                     ktl
+  SOCSdeg:    SOCS(r) -> 0                                     kSOCSdeg
+  SOCSbind:   R(l!+,s) + SOCS(r) <-> R(l!+,s!1).SOCS(r!1)      kSOCSon, kSOCSoff
+end reaction rules
+
+end model
+
+generate_network({overwrite=>1})
+simulate({method=>"ssa",t_end=>240,n_steps=>480})
