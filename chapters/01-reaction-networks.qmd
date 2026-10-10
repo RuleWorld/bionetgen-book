@@ -16,21 +16,21 @@ expresses. Each of these steps is a chemical reaction: molecules bind,
 unbind, are modified, are made, and are destroyed. In this chapter we turn a
 small signaling circuit into a set of reactions, show how the reactions define
 differential equations for the amount of each molecule, and solve those
-equations with BioNetGen. Along the way we meet the main idea of the whole
-book. A model is a precise statement of a mechanism, and simulating it shows
-what that mechanism implies.
+equations with BioNetGen. Throughout the book we treat a model as a precise
+statement of a mechanism, and simulation as the way to find out what that
+mechanism implies.
 
 ::: {.callout-note}
 ## Learning goals
 
 After this chapter you should be able to:
 
-- describe a biochemical process as a set of **species** and **reactions**;
-- write the rate of each reaction using **mass-action kinetics**;
-- turn a reaction network into **ordinary differential equations** (ODEs);
-- write, run, and interpret a reaction network model in the **BioNetGen
-  language** (BNGL);
-- explain how a **negative feedback loop** shapes a signaling response.
+- describe a biochemical process as a set of species and reactions;
+- write the rate of each reaction using mass-action kinetics;
+- turn a reaction network into ordinary differential equations (ODEs);
+- write, run, and interpret a reaction network model in the BioNetGen
+  language (BNGL);
+- explain how a negative feedback loop shapes a signaling response.
 :::
 
 ## Why model reaction networks?
@@ -49,18 +49,18 @@ simple elementary steps, and its behavior emerges from how the steps are
 connected.
 
 Cell biology needs this kind of reasoning because cellular networks are
-large, interconnected, and full of feedback. Cell fate decisions such as
+large and contain many feedback loops. Cell fate decisions such as
 proliferation, differentiation, and death depend on interacting modules for
 growth-factor signaling, the cell cycle, DNA damage, and apoptosis
 [@Tyson2010]. Integrated models of whole cells link many such modules
-[@Bouhaddou2018], but they are assembled from exactly the kind of elementary
+[@Bouhaddou2018], but they are assembled from the same kind of elementary
 reactions we write in this chapter. A model gives us:
 
-- a **precise statement** of a proposed mechanism, which can be checked for
+- a precise statement of a proposed mechanism, which can be checked for
   consistency;
-- **predictions** of dynamics that are hard to measure directly;
-- a way to **test** whether a mechanism can explain experimental data;
-- **hypotheses** that suggest the next experiment.
+- predictions of dynamics that are hard to measure directly;
+- a way to test whether a mechanism can explain experimental data;
+- hypotheses that suggest the next experiment.
 
 ## A cytokine signaling circuit
 
@@ -68,26 +68,27 @@ Our running example is a simplified version of how cells respond to
 **cytokines**, secreted proteins such as interleukins and interferons that
 coordinate immune responses (@fig-roadmap).
 
-- A cytokine (the ligand, L) binds its **receptor** (R) at the cell surface.
+- A cytokine (the ligand, L) binds its receptor (R) at the cell surface.
   The ligand-bound receptor activates kinases of the JAK family that are
   associated with it.
-- **STAT** transcription factors (S) dock on the active receptor and are
+- STAT transcription factors (S) dock on the active receptor and are
   phosphorylated by JAK. Phosphorylated STAT (pSTAT) leaves the receptor and
   moves to the nucleus.
 - In the nucleus pSTAT binds the promoters of target genes. One of these
-  encodes **SOCS** (suppressor of cytokine signaling).
-- SOCS protein binds the receptor and blocks further STAT activation. The
-  output of the pathway thus inhibits its own input: a **negative feedback
-  loop**.
+  encodes SOCS (suppressor of cytokine signaling).
+- SOCS protein binds the receptor and blocks further STAT activation. Because
+  the output of the pathway inhibits its own input, the circuit is a
+  **negative feedback loop**.
 
 ![The cytokine–STAT–SOCS circuit. Numbers mark the six steps we model in this chapter: (1) ligand binding, (2) STAT recruitment to the ligand-bound receptor, (3) STAT activation, (4) release of pSTAT and its dephosphorylation, (5) induction of SOCS, and (6) SOCS feedback on the receptor.](../figures/roadmap-full){#fig-roadmap width=80%}
 
 We will build a model of this circuit one step at a time, adding the
 reactions for each step to the previous model and simulating as we go. The
 model leaves out many known details, such as STAT dimerization, the separate
-receptor chains, and transport into and out of the nucleus. Some of these
-return in later chapters. A simple model is easier to understand, and it
-already shows how feedback shapes the response.
+receptor chains, and transport into and out of the nucleus, some of which
+return in later chapters. Starting from a simple model makes each mechanism
+easier to follow, and the simple model already shows how feedback shapes the
+response.
 
 ## Step 1: Ligand–receptor binding
 
@@ -104,8 +105,8 @@ $$
 We treat this as two **elementary reactions**: binding, which consumes one L
 and one R and produces one LR, and unbinding, which does the reverse. The
 **law of mass action** says that the rate of an elementary reaction is
-proportional to the product of the concentrations of its reactants. The
-proportionality constant is the **rate constant**. Writing $[\mathrm{X}]$ for
+proportional to the product of the concentrations of its reactants, and the
+proportionality constant is called the **rate constant**. Writing $[\mathrm{X}]$ for
 the concentration of species X, the two rates are
 
 $$
@@ -136,9 +137,9 @@ $$
 \end{aligned}
 $$ {#eq-lr-odes}
 
-Nothing here required insight. Once the reactions and rate laws are written
-down, the differential equations follow mechanically. This is why software
-can generate them for us, as BioNetGen does below.
+Once the reactions and rate laws are written down, the differential
+equations follow mechanically, which is why software such as BioNetGen can
+generate them for us.
 
 ### The stoichiometry matrix
 
@@ -165,7 +166,7 @@ S_{ij} = {} & (\text{times species } i \text{ is a product of reaction } j)\\
 \end{aligned}
 $$
 
-@eq-stoich holds for any reaction network. Only $\mathbf{S}$ and the rate
+@eq-stoich holds for any reaction network; only $\mathbf{S}$ and the rate
 laws in $\mathbf{v}$ change from one network to another.
 
 ### Conservation laws and equilibrium
@@ -179,7 +180,7 @@ $$
 
 where $L_0$ and $R_0$ are the initial concentrations. These **conservation
 laws** appear as linear dependencies among the rows of $\mathbf{S}$. Here the
-rows for L and R are both equal to minus the row for LR. Only one of the
+rows for L and R are both equal to minus the row for LR, so only one of the
 three equations is independent.
 
 At equilibrium, binding and unbinding balance ($v_1 = v_2$), so
@@ -199,9 +200,9 @@ $$ {#eq-lr-eq}
 
 ### Solving the equations numerically
 
-A small model like this one can be solved by hand. Real signaling networks
-cannot: their equations are nonlinear and usually have no closed-form
-solution, so we integrate them numerically. The simplest scheme, forward
+A model this small can be solved by hand, but the equations for realistic
+signaling networks are nonlinear and usually have no closed-form solution, so
+we integrate them numerically. The simplest scheme, forward
 Euler, takes small time steps,
 
 $$
@@ -209,8 +210,8 @@ $$
 $$
 
 In practice, reactions in a network occur on very different time scales.
-This makes the equations **stiff**: simple methods like Euler's need
-impractically small steps to remain stable. Production solvers such as
+This makes the equations **stiff**, meaning that simple methods like
+Euler's need impractically small steps to remain stable. Production solvers such as
 CVODE adapt the step size and use implicit methods designed for stiff
 systems. BioNetGen and bngsim use CVODE for ODE simulation.
 
@@ -241,10 +242,10 @@ plt.ylabel("[LR] (µM)")
 plt.legend(loc="center right");
 ```
 
-Two features are worth noting. First, at $L_0 = 10$ µM almost every receptor
-is bound, because the ligand is in large excess over both $K_D$ and $R_0$.
-Adding more ligand cannot increase the response further: the receptors are
-**saturated**. Second, binding is faster at higher ligand. Near equilibrium
+At $L_0 = 10$ µM almost every receptor is bound, because the ligand is in
+large excess over both $K_D$ and $R_0$. Adding more ligand cannot increase the
+response further because the receptors are **saturated**. Binding is also
+faster at higher ligand concentration. Near equilibrium
 the complex relaxes at rate $k_\mathrm{on}([\mathrm{L}] + [\mathrm{R}]) +
 k_\mathrm{off}$, which grows with the amount of free ligand.
 
@@ -279,10 +280,10 @@ and an **actions** section after it.
   `generate_network` builds the list of species and reactions, and `simulate`
   integrates the ODEs and writes the observables to a `.gdat` file.
 
-You can run the model in three ways. In **VS Code** with the BioNetGen
-extension, open the file and click the run button; the results open in a
-plot viewer. In **BNG Playground**, paste the file into the editor and click
-**Run**. From **Python**, load the model with bngsim, as in the code for
+You can run the model in three ways. In VS Code with the BioNetGen
+extension, open the file and click the run button, and the results open in a
+plot viewer. In BNG Playground, paste the file into the editor and click
+**Run**. From Python, load the model with bngsim, as in the code for
 @fig-lr-dose:
 
 ```python
@@ -297,8 +298,8 @@ result.observables["LR"]          # time course of LR
 file's actions, so the simulation is controlled entirely from Python.
 Parameters are changed on the model with `model.set_param`, and
 `model.reset()` returns the species to their initial amounts. Call it before
-each run: a run starts from the model's current state, which is wherever the
-previous run ended.
+each run, because a run starts from the model's current state, which is
+wherever the previous run ended.
 
 ## Building the circuit step by step
 
@@ -313,9 +314,9 @@ $$
 \mathrm{LR} + \mathrm{S} \rightleftharpoons \mathrm{LRS}
 $$
 
-STAT binds the ligand-bound receptor LR but never free R. This is how ligand
-binding **enables** STAT recruitment: there is simply no reaction in which
-free receptor recruits STAT. Every new species needs a molecule type, and
+STAT binds the ligand-bound receptor LR but never free R. Ligand binding
+enables STAT recruitment because the model contains no reaction in which free
+receptor recruits STAT. Every new species needs a molecule type, and
 species present at the start also need an initial amount.
 
 ```{python}
@@ -331,7 +332,7 @@ $$
 $$
 
 The receptor-associated kinase phosphorylates the docked STAT. This is a
-**first-order**, irreversible reaction with rate $v = k_\mathrm{act}[\mathrm{LRS}]$.
+first-order, irreversible reaction with rate $v = k_\mathrm{act}[\mathrm{LRS}]$.
 
 ```{python}
 #| echo: false
@@ -339,9 +340,9 @@ The receptor-associated kinase phosphorylates the docked STAT. This is a
 show_new("ch01", "stat_step3_activate")
 ```
 
-Simulating this model exposes a problem (@fig-step3). Phosphorylated STAT
-never leaves the receptor, so every receptor ends up trapped as
-LRS~p~, and each receptor activates only one STAT.
+Simulating this model shows that phosphorylated STAT never leaves the
+receptor (@fig-step3), so every receptor ends up trapped as LRS~p~ and each
+receptor activates only one STAT.
 
 ```{python}
 #| label: fig-step3
@@ -397,9 +398,9 @@ plt.legend();
 
 ### Step 5: pSTAT induces SOCS expression
 
-Step 5 adds gene expression. pSTAT binds the SOCS promoter (G), the bound
-promoter is transcribed into SOCS mRNA, and the mRNA is translated into SOCS
-protein. Both mRNA and protein are degraded.
+In step 5, pSTAT binds the SOCS promoter (G), the bound promoter is
+transcribed into SOCS mRNA, and the mRNA is translated into SOCS protein.
+Both mRNA and protein are degraded.
 
 ```{python}
 #| echo: false
@@ -407,11 +408,11 @@ protein. Both mRNA and protein are degraded.
 show_new("ch01", "stat_step5_transcribe")
 ```
 
-Two new kinds of reaction appear here. In a **synthesis** reaction such as
-`GSp -> GSp + mSOCS`, a species appears on both sides. It acts as a template
-and is not consumed, so the rate is proportional to its amount. In a
-**degradation** reaction such as `SOCS -> 0`, the product `0` means nothing:
-the molecule is removed. The rate constants of these reactions are first
+This step introduces synthesis and degradation reactions. In a
+**synthesis** reaction such as `GSp -> GSp + mSOCS`, a species appears on both
+sides; it acts as a template and is not consumed, so the rate is proportional
+to its amount. In a **degradation** reaction such as `SOCS -> 0`, the product
+`0` indicates that the molecule is removed. The rate constants of these reactions are first
 order.
 
 SOCS now accumulates, but it does not yet act on anything, so pSTAT is
@@ -440,7 +441,7 @@ $$
 
 SOCS competes with STAT for the ligand-bound receptor. The complex
 LR·SOCS cannot recruit STAT, so as SOCS accumulates, pSTAT production falls.
-The loop is closed:
+This reaction completes the feedback loop:
 
 $$
 \text{pSTAT} \;\longrightarrow\; \text{SOCS} \;\dashv\; \text{receptor} \;\longrightarrow\; \text{pSTAT}.
@@ -479,10 +480,10 @@ plt.legend(loc="lower right");
 
 The early response is identical with and without feedback, because SOCS has
 not yet been made. As SOCS accumulates it sequesters receptors, and pSTAT
-falls to a low level even though ligand is still present. This behavior is
-called **adaptation**. The delay before the feedback acts comes from the
-intervening steps: pSTAT must bind the promoter, mRNA must accumulate, and
-SOCS protein must build up to levels comparable to the receptor.
+falls to a low level even though ligand is still present, a behavior called
+**adaptation**. The delay before the feedback acts comes from the intervening
+steps, in which pSTAT must bind the promoter, mRNA must accumulate, and SOCS
+protein must build up to levels comparable to the receptor.
 
 The pulse can be described by three properties: the **time of the peak**, the
 **height of the peak**, and the **adapted level** that pSTAT settles to. Each
@@ -516,7 +517,7 @@ the network to a `.net` file that you can inspect.
 The model makes strong simplifying assumptions, and relaxing them exposes two
 limitations of the approach in this chapter.
 
-First, **every species had to be named by hand**: L, LR, LRS, LRS~p~,
+First, every species had to be named by hand: L, LR, LRS, LRS~p~,
 LR·SOCS, and so on. Suppose SOCS could also bind receptors that already carry
 STAT, or ligand could dissociate from any receptor complex. Each such change
 creates new complexes, and each complex needs its own name and its own copy

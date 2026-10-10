@@ -11,26 +11,25 @@ import bngsim
 ```
 
 In @sec-reaction-networks every species in the cytokine–STAT–SOCS model had a
-name: L, LR, LRS, LRS~p~, LR·SOCS. That worked for twelve species. It stops
-working as soon as the model includes what we actually know about the
+name, such as L, LR, LRS, LRS~p~, and LR·SOCS. Naming species by hand works for
+twelve species but fails once the model includes what is known about the
 molecules involved, because signaling proteins have many binding and
-modification sites, and the number of ways those sites can be combined grows
-explosively. This chapter introduces the idea at the heart of rule-based
-modeling [@Hlavacek2006]. Molecules are represented as structured objects
-with sites and states. Interactions are written as **rules** that say which
-parts of a molecule matter. BioNetGen then generates the reaction network
-from the rules automatically.
+modification sites and the number of ways those sites can be combined grows
+combinatorially. Rule-based modeling [@Hlavacek2006] represents molecules as
+structured objects with sites and states, and writes each interaction as a
+**rule** that mentions only the parts of the molecules that matter. BioNetGen
+then generates the reaction network from the rules.
 
 ::: {.callout-note}
 ## Learning goals
 
 After this chapter you should be able to:
 
-- explain why multi-site proteins lead to **combinatorial complexity**;
-- represent molecules with **components**, **states**, and **bonds** in BNGL;
-- read and write **patterns**, and use them to define observables;
-- write **reaction rules** and predict which reactions a rule generates;
-- describe how BioNetGen **generates a network** from rules, and when
+- explain why multi-site proteins lead to combinatorial complexity;
+- represent molecules with components, states, and bonds in BNGL;
+- read and write patterns, and use them to define observables;
+- write reaction rules and predict which reactions a rule generates;
+- describe how BioNetGen generates a network from rules, and when
   network-free simulation is needed instead.
 :::
 
@@ -48,19 +47,21 @@ promoters.
 ![Domain structure of STAT3. Each domain or modification site can interact or change state largely independently of the others.](../figures/stat-domains){#fig-stat-domains width=75%}
 
 The receptor and JAK have their own sets of sites, and so does nearly every
-signaling protein. Sites can be occupied or modified **in combination**. A
+signaling protein, and sites can be occupied or modified in combination. A
 protein with $n$ independent sites, each with two states, has $2^n$ possible
-states. Complexes multiply the counts of their parts. This is
+states, and because a complex combines the states of all its parts, the
+number of possible complexes grows faster still. This growth is called
 **combinatorial complexity**. In a model of the ErbB receptor family with its
 known binding partners, a single ErbB1 homodimer can take more than $5\times
 10^{10}$ distinct states, and an ErbB1–ErbB3 heterodimer more than $3.8\times
-10^9$ [@Creamer2012]. No one can name that many species.
+10^9$, far more than could be named individually [@Creamer2012].
 
-Yet most interactions depend on only one or two sites. Whether SOCS binds the
-receptor does not depend on whether a STAT molecule elsewhere in the complex
-is phosphorylated on serine 727. Rule-based modeling exploits this: each
-interaction is written once, mentioning only the sites it depends on, and
-applies to every complex that has those sites in the required states.
+However, most interactions depend on only one or two sites. Whether SOCS binds
+the receptor does not depend on whether a STAT molecule elsewhere in the
+complex is phosphorylated on serine 727. Rule-based modeling takes advantage
+of this locality by writing each interaction once, mentioning only the sites
+it depends on, so that the interaction applies to every complex that has those
+sites in the required states.
 
 ## Molecules with structure
 
@@ -104,7 +105,7 @@ labels only need to be unique within a species. A component with no `!`, like
 A species is therefore a **graph** (@fig-lrsp). Many strings describe the
 same graph: molecules can be listed in any order and bonds numbered in any
 way. BioNetGen recognizes when two strings describe the same species by
-comparing graphs, not strings.
+comparing their graphs.
 
 ## Patterns
 
@@ -114,7 +115,7 @@ not mentioned in a pattern may be in any state and bound or not. Within a
 pattern:
 
 - a component with no bond notation must be **free**;
-- `!+` means bound to something, it doesn't matter what;
+- `!+` means bound to any partner;
 - `!?` means bound or not;
 - a state such as `~P` must match exactly.
 
@@ -149,13 +150,13 @@ With structured molecules we describe the property instead:
 Molecules pSTAT S(Y~P)
 ```
 
-The pattern keeps working when we add new complexes that contain pSTAT. No
-observable needs to be rewritten.
+The pattern continues to match every pSTAT-containing species as new
+complexes are added to the model, so the observable never needs to be
+rewritten.
 
-There are two kinds of observable. A `Molecules` observable counts every
-**match** of its pattern, so a STAT dimer with two phosphotyrosines
-contributes 2 to `S(Y~P)`. A `Species` observable counts each matching
-**complex** once:
+A `Molecules` observable counts every match of its pattern, so a STAT dimer
+with two phosphotyrosines contributes 2 to `S(Y~P)`, whereas a `Species`
+observable counts each matching complex once:
 
 ```bngl
 Species pSTATdimer S(d!1).S(d!1)
@@ -181,8 +182,8 @@ Sbind: R(l!+,s) + S(r,Y~0) <-> R(l!+,s!1).S(r!1,Y~0)  kSon, kSoff
   rate follows mass action.
 
 The parts of a reactant pattern that are not changed by the rule, here
-`l!+` and the state `Y~0`, are its **context**. Context restricts where a rule
-applies. A rule can do five things:
+`l!+` and the state `Y~0`, are its **context**, which restricts where the
+rule applies. A rule can perform five kinds of operation:
 
 | Operation | Example |
 |---|---|
@@ -243,8 +244,8 @@ for name in rules.species_names:
     print("  ", name)
 ```
 
-The rules generate exactly the same 12 species and 15 reactions as the
-hand-written network, now with structured names. @fig-equivalent confirms that
+The rules generate the same 12 species and 15 reactions as the hand-written
+network, now with structured names. @fig-equivalent confirms that
 the two models give identical dynamics.
 
 ```{python}
@@ -264,9 +265,9 @@ plt.legend();
 
 ## Relaxing the assumptions
 
-The value of rules becomes clear when we make the model more realistic. We
-relax the simplifying assumptions one at a time. Each version is a separate
-file in `models/ch02/`, and each changes only a few lines.
+We now make the model more realistic by relaxing its simplifying
+assumptions one at a time. Each version is a separate file in
+`models/ch02/`, and each changes only a few lines.
 
 ### Ligand can leave any receptor complex
 
@@ -290,16 +291,15 @@ are now written as separate rules:
 show_lines("ch02", "stat_rbm2_ligand_release", "Sbind:", "Sunbind:", "Sact:")
 ```
 
-**One rule now generates many reactions.** `LRbind` generates four binding
-reactions, one each for ligand binding to R alone, to R·S, to R·S~p~, and to
-R·SOCS, and four matching unbinding reactions. None of these reactions had to
-be written by hand.
+As a result, `LRbind` alone now generates four binding reactions, one each
+for ligand binding to R alone, to R·S, to R·S~p~, and to R·SOCS, together with
+four matching unbinding reactions, none of which had to be written by hand.
 
 ### SOCS binds its own site and blocks kinase activity
 
-In the first model SOCS blocks STAT docking by occupying the same site. Real
-SOCS proteins act differently: SOCS1 inhibits JAK directly, and SOCS3
-inhibits JAK while bound to the receptor. We give the receptor a separate
+In the first model SOCS blocks STAT docking by occupying the same site.
+SOCS proteins act differently in cells, where SOCS1 inhibits JAK directly and
+SOCS3 inhibits JAK while bound to the receptor. We give the receptor a separate
 SOCS site and require it to be free for STAT activation:
 
 ```{python}
@@ -313,8 +313,8 @@ SOCS is absent. A receptor can now carry STAT and SOCS at the same time.
 
 ### Cytokines bring two receptor chains together
 
-Most cytokine receptors signal as dimers: the ligand has two binding sites,
-and JAKs on the two receptor chains activate each other. We give the ligand
+Most cytokine receptors signal as dimers, in which a ligand with two binding
+sites brings together two receptor chains whose JAKs activate each other. We give the ligand
 two identical sites and require the dimer for activation (@fig-dimer):
 
 ```{python}
@@ -325,10 +325,9 @@ show_lines("ch02", "stat_rbm4_receptor_dimer", "L(r,r)  ", "LRbind:", "Crosslink
 
 ![A cytokine bridging two receptor chains, each carrying a STAT.](../figures/receptor-dimer){#fig-dimer width=24%}
 
-Two details deserve attention. First, the ligand's two sites are identical,
-and BioNetGen accounts for this automatically: a free ligand can bind a
-receptor through either site, so the generated reaction has a statistical
-factor of 2. Second, a bivalent ligand in large excess occupies receptor
+BioNetGen accounts automatically for the two identical ligand sites. A free
+ligand can bind a receptor through either site, so the generated reaction has
+a statistical factor of 2. In addition, a bivalent ligand in large excess occupies receptor
 chains one at a time and prevents crosslinking, so the response falls at high
 dose. This version therefore lowers $L_0$ from 10 to 1 µM.
 
@@ -345,16 +344,16 @@ show_lines("ch02", "stat_rbm5_stat_dimer", "S(r,Y~0~P,d,g)", "Sdimer:", "Gbind:"
 ```
 
 `S(d!+,g)` matches any STAT that is in a dimer and not yet on DNA. We
-restricted dimerization to free pSTAT. If receptor-bound STATs could dimerize
-too, dimers could bridge receptor complexes into chains of any length, and the
-network would be **infinite**. Network generation would never finish unless
+restricted dimerization to free pSTAT because, if receptor-bound STATs could
+also dimerize, dimers could bridge receptor complexes into chains of any
+length and the network would be infinite. Network generation would never finish unless
 limited, for example with the `max_agg` option, which caps the size of
 complexes.
 
 ### A second phosphorylation site
 
 STAT3 is also phosphorylated on serine 727, independently of tyrosine 705.
-We add one component and **one** rule:
+This change requires one new component and a single rule:
 
 ```{python}
 #| echo: false
@@ -435,9 +434,10 @@ plt.legend();
 All versions show the SOCS-driven pulse. Blocking the kinase (version 3) gives
 a lower peak and a faster shutoff than blocking docking (version 1).
 Dimerization (version 5) protects pSTAT from the phosphatase, so the response
-lasts much longer. Which mechanism is right is a question for experiments.
-Rules make it easy to build the alternatives and compare their predictions,
-which is the first step in designing the experiments that tell them apart.
+lasts much longer. Deciding which mechanism operates in cells requires
+experiments, and rules make it easy to build the alternative models and compare
+their predictions, which is the first step in designing experiments that
+distinguish them.
 
 ## When networks are too large to generate
 
@@ -459,15 +459,15 @@ simulators, and a later chapter covers them in detail.
 
 ## Summary
 
-- Multi-site proteins create **combinatorial complexity**: a few interactions
-  imply many species and reactions.
-- BNGL represents molecules as objects with **components**, **states**, and
-  **bonds**. Species are graphs.
-- **Patterns** specify only what matters (don't write, don't care), and
-  define observables that stay correct as a model grows.
-- **Rules** transform patterns. One rule generates every reaction that fits
-  its pattern, and context restricts where it applies.
-- BioNetGen **generates the network** from rules for ODE and stochastic
+- Multi-site proteins create combinatorial complexity, in which a few
+  interactions imply many species and reactions.
+- BNGL represents molecules as objects with components, states, and bonds,
+  so species are graphs.
+- Patterns specify only what matters (don't write, don't care), and define
+  observables that stay correct as a model grows.
+- Rules transform patterns. One rule generates every reaction that fits its
+  pattern, and context restricts where it applies.
+- BioNetGen generates the network from rules for ODE and stochastic
   simulation. Network-free methods simulate models whose networks are too
   large to generate.
 
