@@ -1,0 +1,35 @@
+# Three ways of writing the degradation of a molecule that is bound to a
+# partner. Each pair of molecules starts as a single complex.
+begin model
+begin parameters
+  kdeg  0.1     # degradation (1/min)
+end parameters
+begin molecule types
+  A(b)
+  B(a)
+  C(d)
+  D(c)
+  E(f)
+  F(e)
+end molecule types
+begin seed species
+  A(b!1).B(a!1)  1
+  C(d!1).D(c!1)  1
+  E(f!1).F(e!1)  1
+end seed species
+begin observables
+  Molecules Btot  B()
+  Molecules Dtot  D()
+  Molecules Ftot  F()
+end observables
+begin reaction rules
+  # Deletes the whole complex that contains A, including B
+  DegA: A() -> 0  kdeg
+  # Deletes only C; its partner D is released
+  DegC: C() -> 0  kdeg  DeleteMolecules
+  # Writes the outcome explicitly: E is removed and F is released
+  DegE: E(f!1).F(e!1) -> F(e)  kdeg
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>60,n_steps=>60})

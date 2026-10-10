@@ -2,7 +2,7 @@
 
 *Working draft, October 2026. Everything here is a proposal to react to.*
 
-**Status:** M1 in progress. Repository created, Chapters 1–2 drafted, CI set up.
+**Status (2026-10-10):** Part I drafted (Chapters 1–4). Chapters 1–2 revised for voice; see STYLE.md.
 
 ## What we are building
 
@@ -67,8 +67,8 @@ Chapters 1 and 2.
 |---|---|---|---|---|
 | 1 | Reaction networks as dynamical systems | species, reactions, mass action, ODEs, stoichiometry matrix, first BNGL model | build the STAT–SOCS loop step by step | exists (Module 1) |
 | 2 | Molecules, patterns, and rules | components, states, bonds, patterns, rules, network generation, combinatorial complexity | rewrite the loop as rules, then relax assumptions | exists (Module 2) |
-| 3 | Stochastic simulation and noise | SSA, when ODEs fail, intrinsic noise, bursting, ensemble statistics, PSA | one SOCS gene copy gives bursty feedback | partial (old deck SSA slides; `run_lr` notebook) |
-| 4 | A field guide to rules | binding, modification, synthesis and degradation, symmetry and multiplicity, intramolecular binding, aggregation and `max_agg`, cooperativity, functional rate laws | rules for each signaling motif | partial (`RuleWorld/BNGTutorial`; Sekar & Faeder 2012 rule library) |
+| 3 | Stochastic simulation and noise | SSA, when ODEs fail, intrinsic noise, bursting, ensemble statistics, PSA | one SOCS gene copy gives bursty feedback | drafted |
+| 4 | A field guide to rules | binding, modification, synthesis and degradation, symmetry and multiplicity, intramolecular binding, aggregation and `max_agg`, cooperativity, functional rate laws | rules for each signaling motif | drafted |
 
 ### Part II. Building realistic models
 

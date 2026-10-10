@@ -1,0 +1,34 @@
+# Transcription with a Hill-function rate law, as a lumped alternative to
+# explicit promoter binding. The function uses an observable.
+begin model
+begin parameters
+  S0     10      # STAT (uM)
+  kact   0.5     # STAT activation (1/min)
+  kdeact 0.1     # STAT deactivation (1/min)
+  vmax   1       # maximal transcription rate (uM/min)
+  K      2       # pSTAT giving half-maximal transcription (uM)
+  n      2       # Hill coefficient
+  kmdeg  0.1     # mRNA degradation (1/min)
+end parameters
+begin molecule types
+  S(Y~0~P)
+  mRNA()
+end molecule types
+begin seed species
+  S(Y~0)  S0
+end seed species
+begin observables
+  Molecules pSTAT  S(Y~P)
+  Molecules mRNA   mRNA()
+end observables
+begin functions
+  fTx() = vmax*pSTAT^n/(K^n + pSTAT^n)
+end functions
+begin reaction rules
+  Activate:   S(Y~0) <-> S(Y~P)   kact, kdeact
+  Transcribe: 0 -> mRNA()         fTx()
+  Degrade:    mRNA() -> 0         kmdeg
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>60,n_steps=>120})

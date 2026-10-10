@@ -1,0 +1,400 @@
+# A field guide to rules {#sec-rules-guide}
+
+```{python}
+#| include: false
+import sys
+sys.path.insert(0, "../scripts")
+from bookutils import show_bngl, show_lines, show_net, model_path
+import numpy as np
+import matplotlib.pyplot as plt
+import bngsim
+```
+
+Most models of signaling are assembled from a small number of recurring
+mechanisms: binding, modification by enzymes, synthesis, degradation, and the
+formation of larger complexes. @sec-rules introduced the syntax of rules, and
+this chapter shows how to write rules for each of these mechanisms, what
+reactions BioNetGen generates from them, and where the generated network can
+differ from what the modeler intended. Each section is built around a small
+model in `models/ch04/`, and for each one we look at the reactions BioNetGen
+produces. Reading the generated network is the most reliable way to check a
+rule, and new modelers should make it a habit. The chapter closes with a list
+of common mistakes that are hard to spot without reading the generated
+network.
+
+::: {.callout-note}
+## Learning goals
+
+After this chapter you should be able to:
+
+- write rules for binding, including binding of identical molecules and of
+  molecules with several identical sites, and predict the statistical factors
+  BioNetGen applies;
+- use context to make a rate depend on the state of another site;
+- model enzymatic modification with an explicit mechanism or with a
+  Michaelis–Menten rate law, and choose between them;
+- write rules for synthesis and degradation, including degradation of a
+  molecule that is part of a complex;
+- define rate laws with functions of observables;
+- write rules for the formation of chains and rings, and limit the size of
+  the network they generate.
+:::
+
+## Reading the generated network
+
+Every rule in this chapter is checked the same way. BioNetGen generates the
+network, and we list the reactions it contains, written out with the full
+species on each side and the rate law of each reaction. The listing comes from
+the `.net` file that `generate_network` writes, which can also be opened
+directly in any text editor. The rate laws in this listing contain the
+statistical factors that BioNetGen derives from the structure of the
+molecules, and these factors are the main subject of the next section.
+
+## Binding
+
+### Identical partners
+
+Consider two molecules of the same type that bind each other through a single
+site to form a dimer:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch04", "homodimer", "Dimerize:")
+```
+
+BioNetGen generates the following reactions:
+
+```{python}
+#| echo: false
+#| output: asis
+show_net("ch04", "homodimer")
+```
+
+The rate constant of the forward reaction is `0.5*kf`, not `kf`. The factor of
+one half accounts for the fact that the two reactants are identical. In a
+system of $N$ molecules there are $N(N-1)/2$ distinct pairs, not $N^2$, and
+the factor in the generated reaction makes the deterministic and stochastic
+descriptions consistent with this count. The ODE for the dimer is thus
+
+$$
+\frac{d[\mathrm{A_2}]}{dt} = \tfrac12\,k_f\,[\mathrm{A}]^2 - k_r\,[\mathrm{A_2}].
+$$
+
+The practical consequence concerns rate constants taken from the literature.
+If a published model writes the dimerization rate as $k[\mathrm{A}]^2$, the
+rule must use `2*k` to reproduce it. It is important to note that conventions
+differ among papers and software packages, so a rate constant for a
+symmetric reaction should never be copied without checking which convention
+was used.
+
+### Multiple identical sites
+
+The opposite situation arises when one molecule has several identical sites
+for a partner. In `bivalent.bngl`, molecule A has two equivalent sites for B,
+declared by repeating the component name, `A(b,b)`. A single rule describes
+binding at either site:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch04", "bivalent", "Bind:")
+```
+
+```{python}
+#| echo: false
+#| output: asis
+show_net("ch04", "bivalent")
+```
+
+Free A binds B at rate `2*kon`, since either of its two empty sites can be
+used, while A with one site filled binds a second B at rate `kon`. Likewise,
+the complex with two bound B molecules releases one at rate `2*koff`. These
+factors follow from counting the ways a rule can be applied to a species, and
+BioNetGen computes them automatically.
+
+### Cooperativity through context
+
+Binding at one site often changes binding at another. In `cooperative.bngl`,
+a receptor has two sites, `a` and `b`, and ligand binds site `b` ten times
+faster when site `a` is already occupied:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch04", "cooperative", "First:", "Second:")
+```
+
+```{python}
+#| echo: false
+#| output: asis
+show_net("ch04", "cooperative")
+```
+
+The context `R(a,b)` in the first rule restricts it to receptors with both
+sites empty, and `R(a!+,b)` restricts the second rule to receptors with site
+`a` filled. The generated network shows a consequence that is easy to miss. The
+reverse of each rule applies the same context as the forward direction, so
+ligand bound at site `a` can leave only while site `b` is empty. If both sites
+can release their ligand independently, the unbinding reactions must be
+written as separate rules without that context, as we did for STAT in
+@sec-rules.
+
+## Enzymatic modification
+
+A kinase that phosphorylates a substrate can be modeled at two levels of
+detail. The explicit mechanism follows the elementary steps, binding of
+enzyme and substrate followed by catalysis and release:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch04", "enzyme", "ESbind:", "EScat:")
+```
+
+When the enzyme–substrate complex is short-lived and the enzyme is much less
+abundant than the substrate, the complex reaches a quasi-steady state, and the
+rate of phosphorylation takes the familiar Michaelis–Menten form,
+$v = k_\mathrm{cat}[\mathrm{E}][\mathrm{S}]/(K_m + [\mathrm{S}])$, with
+$K_m = (k_\mathrm{off} + k_\mathrm{cat})/k_\mathrm{on}$. BNGL provides this
+form as the built-in rate law `MM(kcat,Km)`:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch04", "enzyme", "MMcat:")
+```
+
+The enzyme appears on both sides of the rule, since it is not consumed, and
+its free amount enters the rate. @fig-enzyme compares the two descriptions.
+
+```{python}
+#| label: fig-enzyme
+#| fig-cap: "Phosphorylation by a kinase described by an explicit binding–catalysis mechanism (solid) and by the Michaelis–Menten rate law (dashed). The two agree when the enzyme is scarce (1% of the substrate) and differ slightly when it is abundant (50%)."
+#| code-fold: true
+model = bngsim.Model.from_bngl(model_path("ch04", "enzyme"))
+sim = bngsim.Simulator(model, method="ode")
+for E0, color, t_end in [(0.01, "#1B365D", 200), (0.5, "#C8102E", 200)]:
+    model.set_param("E0", E0)
+    model.reset()
+    r = sim.run(t_span=(0, t_end), n_points=401)
+    plt.plot(r.time, r.observables["Sp_explicit"], color=color, label=f"explicit, $E_0$ = {E0} µM")
+    plt.plot(r.time, r.observables["Sp_MM"], "--", color=color, label=f"MM rate law, $E_0$ = {E0} µM")
+model.set_param("E0", 0.01)
+plt.xlabel("time (min)")
+plt.ylabel("phosphorylated substrate (µM)")
+plt.legend(loc="lower right");
+```
+
+The two agree closely when the enzyme is scarce, as the derivation of the
+Michaelis–Menten form requires. The rate law is more economical, since it
+introduces no enzyme–substrate complexes, and its two parameters,
+$k_\mathrm{cat}$ and $K_m$, are the ones usually reported by enzymologists. The
+explicit mechanism, on the other hand, is required whenever the
+enzyme–substrate complex matters in its own right: when substrates compete for
+the enzyme, when the enzyme is abundant enough to be sequestered, or when the
+complex has other interactions, as a receptor-bound STAT does.
+
+The rate law also hides a trap, which appeared while the models for this
+chapter were being written. In the first version of `enzyme.bngl`, the same
+kinase molecule was used for both the explicit and the Michaelis–Menten
+rules. The
+explicit rules tied up most of the kinase in enzyme–substrate complexes, and
+since the `MM` rate law uses the amount of free enzyme, the Michaelis–Menten
+reaction ran about five times too slowly. The model file now uses a separate
+kinase for each mechanism. The general lesson is that an enzyme described by an
+`MM` rate law should not also participate in explicit binding rules for the
+same reaction.
+
+## Making and removing molecules
+
+Synthesis and degradation were introduced in @sec-reaction-networks.
+Synthesis from nothing, `0 -> A()`, describes production at a constant rate,
+for example from a gene that is not part of the model, and synthesis from a
+template, `G(s!+) -> G(s!+) + mRNA()`, describes production at a rate
+proportional to the amount of the template. Degradation needs more care when
+the molecule being degraded can be part of a complex. `degradation.bngl`
+contains three pairs of bound molecules and three ways of writing a
+degradation rule:
+
+```{python}
+#| echo: false
+#| output: asis
+show_bngl("ch04", "degradation", start="begin reaction rules", end="end reaction rules")
+```
+
+```{python}
+#| echo: false
+#| output: asis
+show_net("ch04", "degradation")
+```
+
+The first rule removes not only A but its partner B, since by default a
+molecule deleted by a rule takes the entire complex that contains it. The
+keyword `DeleteMolecules` in the second rule changes this behavior, so that
+only C is removed and its partner D is released. The third rule gives the same
+result as the second by writing the product explicitly. Which behavior is
+correct depends on the biology. Degradation of a receptor by internalization
+may reasonably take its bound ligand with it, while proteolysis of one subunit
+of a complex usually releases the others.
+
+## Rate laws from functions
+
+Sometimes a process is not worth modeling at the level of elementary
+reactions, either because its mechanism is unknown or because its details are
+not the subject of the model. BNGL allows the rate of a rule to be any
+mathematical function of parameters and observables, defined in a
+`functions` block. In `hill.bngl`, transcription of a target gene is a Hill
+function of the amount of phosphorylated STAT, which replaces the explicit
+promoter binding of @sec-reaction-networks:
+
+```{python}
+#| echo: false
+#| output: asis
+show_bngl("ch04", "hill", start="begin functions", end="end reaction rules")
+```
+
+The function `fTx()` is evaluated as the simulation proceeds, using the current
+value of the observable `pSTAT`. A function used as a rate law takes the place
+of the rate constant, so the rate of each generated reaction is the value of
+the function multiplied by the amounts of the reactants, just as for mass
+action. Here the rule has no reactants, and the rate of mRNA synthesis is thus
+`fTx()` itself. With a Hill
+coefficient $n = 2$ and half-maximal pSTAT $K$, the rate rises steeply as pSTAT
+passes $K$, mimicking cooperative binding of STAT dimers to the promoter
+without modeling the dimers.
+
+Lumped rate laws of this kind should be used deliberately. A Hill function
+fitted to a dose–response curve can reproduce the curve without saying
+anything about the mechanism that produced it, and it cannot predict how the
+response changes when the mechanism is perturbed, for example by a mutation
+that prevents dimerization. A useful rule of thumb is to use explicit
+mechanisms for the parts of a system that are the subject of the study, and
+lumped rate laws only for the parts that are not.
+
+## Chains, rings, and the size of the network
+
+When molecules have more than one binding site, they can form chains and
+rings of any length. The classic example in immune signaling is the
+crosslinking of receptors by multivalent ligands. `aggregation.bngl` contains
+a ligand with two sites and a receptor with two sites, with one rule for
+binding between complexes and one for closing a ring:
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch04", "aggregation", "Bind:", "Close:")
+```
+
+The rule `Close` has a single reactant pattern, `L(r!1,r).R(l!1,l)`, in which
+the dot joins a ligand and a receptor in the same complex. It therefore
+describes binding between two free sites in the same complex, a unimolecular
+reaction with rate constant `kring` in units of inverse time. In contrast, the
+rule `Bind` has two reactant patterns separated by `+`, and BioNetGen applies
+it only to sites on different complexes. The distinction matters because the
+rate of ring closure, which depends on the flexibility and geometry of the
+complex, has no relation to the rate of binding between molecules in solution.
+
+Without a limit, the rule `Bind` generates chains of every length, and network
+generation never finishes. The option `max_agg` in the `generate_network`
+action caps the number of molecules in any complex. @tbl-agg shows how the
+network grows as the cap is raised.
+
+```{python}
+#| label: tbl-agg
+#| tbl-cap: "Size of the network generated from aggregation.bngl as a function of max_agg, the largest complex allowed."
+#| code-fold: true
+import pandas as pd, tempfile, os
+src = model_path("ch04", "aggregation").read_text()
+rows = []
+for max_agg in [2, 4, 6, 8, 10]:
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "aggregation.bngl")
+        open(path, "w").write(src.replace("max_agg=>4", f"max_agg=>{max_agg}"))
+        m = bngsim.Model.from_bngl(path, cache=False)
+    rows.append({"max_agg": max_agg, "species": m.n_species, "reactions": m.n_reactions})
+pd.DataFrame(rows).set_index("max_agg")
+```
+
+The number of reactions grows faster than the number of species, since each
+new chain can react with every existing one. A cap on complex size is only
+justified when larger complexes are rare, which should be checked by
+simulating with a larger cap and confirming that the results do not change.
+When large aggregates are important, as they are in the activation of
+immunoreceptors, the network becomes too large to generate, and network-free
+simulation is the method of choice.
+
+## Common mistakes
+
+The following mistakes are easy to make and hard to detect from simulation
+results alone.
+
+1. **Ignoring the symmetry factor.** A rule for binding of identical molecules
+   generates a reaction with half the written rate constant. Check the
+   convention of any rate constant taken from the literature.
+2. **Missing context.** A rule without context applies to every species that
+   matches it, including complexes the modeler did not have in mind. Read the
+   generated network for unintended reactions, as in @sec-rules, where
+   removing one context from the ligand rule added reactions for every receptor
+   complex.
+3. **Context in the reverse direction.** A reversible rule applies its
+   context in both directions. When the forward and reverse reactions should
+   have different context, write them as two rules.
+4. **Deleting whole complexes.** A degradation rule removes the entire complex
+   containing the deleted molecule unless `DeleteMolecules` is given or the
+   products are written explicitly.
+5. **Mixing explicit and lumped descriptions of the same enzyme.** An `MM`
+   rate law uses the free enzyme, so an enzyme that also binds substrate
+   through explicit rules will be partly hidden from it.
+6. **Counting the wrong thing.** A `Molecules` observable counts matches and a
+   `Species` observable counts complexes. A function of an observable inherits
+   this difference.
+7. **Inconsistent units.** Rate constants and initial amounts must use the
+   same units, either concentrations or molecule numbers, as discussed in
+   @sec-stochastic.
+
+## Summary
+
+- Reading the reactions BioNetGen generates is the most reliable way to check
+  that a rule does what was intended.
+- BioNetGen applies statistical factors automatically: one half for binding of
+  identical molecules, and integer factors for molecules with several
+  identical sites.
+- Context makes rates depend on the state of other sites, and it applies in
+  both directions of a reversible rule.
+- Enzymatic modification can be modeled explicitly or with the `MM` rate law.
+  The two agree when the enzyme is scarce.
+- Degradation removes the whole complex unless `DeleteMolecules` is used or the
+  products are given explicitly.
+- Rate laws can be functions of observables, which is useful for lumping
+  processes that are not the subject of a model.
+- Rules for multivalent binding generate chains and rings of unbounded size.
+  `max_agg` limits network generation, and network-free simulation avoids it.
+
+## Exercises
+
+1. **Symmetry.** Write a model in which two molecules of A bind through two
+   distinct sites, `A(x,y)`, with `x` binding `y`. Compare the generated
+   network with `homodimer.bngl`. Which reactions have statistical factors,
+   and why?
+2. **Cooperativity.** Modify `cooperative.bngl` so that either site can be
+   occupied first and ligand can leave either site at any time. How many rules
+   do you need? Plot the fraction of receptors with both sites filled as a
+   function of ligand concentration for `kon2` = 0.1, 1, and 10.
+3. **When does Michaelis–Menten fail?** In `enzyme.bngl`, vary `E0` from 0.001
+   to 1 µM and measure the time for half of the substrate to be phosphorylated
+   by each mechanism. Explain where and why the two begin to disagree.
+4. **Degradation.** Add a degradation rule for SOCS to `stat_rbm1_rules.bngl`
+   from @sec-rules that degrades SOCS whether it is free or bound to the
+   receptor. Should the receptor be released or degraded with it? Write both
+   versions and compare the adapted level of pSTAT.
+5. **Capping aggregation.** Simulate `aggregation.bngl` with `max_agg` = 4, 6,
+   and 8, and plot the number of rings over time. Is a cap of 4 adequate for
+   these parameters? How would you decide?
+
+## Further reading
+
+@Sekar2012 contains an extensive library of example rules for signaling
+mechanisms, from binding at the membrane to gene regulation. @Faeder2009
+describes the syntax of rules, rate laws, and network generation options in
+detail.

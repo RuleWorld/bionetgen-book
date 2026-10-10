@@ -1,0 +1,26 @@
+# A bivalent molecule A with two identical sites for B.
+begin model
+begin parameters
+  A0    1       # bivalent molecule (uM)
+  B0    1       # monovalent partner (uM)
+  kon   1       # site binding (1/uM/min)
+  koff  0.1     # site unbinding (1/min)
+end parameters
+begin molecule types
+  A(b,b)
+  B(a)
+end molecule types
+begin seed species
+  A(b,b)  A0
+  B(a)    B0
+end seed species
+begin observables
+  Molecules Bbound  B(a!+)
+  Species   AB2     A(b!1,b!2).B(a!1).B(a!2)
+end observables
+begin reaction rules
+  Bind: A(b) + B(a) <-> A(b!1).B(a!1)  kon, koff
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>20,n_steps=>200})

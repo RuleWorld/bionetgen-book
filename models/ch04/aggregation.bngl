@@ -1,0 +1,27 @@
+# A bivalent ligand and a bivalent receptor form chains and rings. Network
+# generation is capped with max_agg, the largest complex allowed (in molecules).
+begin model
+begin parameters
+  L0    1
+  R0    1
+  kon   1
+  koff  0.1
+  kring 10
+end parameters
+begin molecule types
+  L(r,r)
+  R(l,l)
+end molecule types
+begin seed species
+  L(r,r)  L0
+  R(l,l)  R0
+end seed species
+begin observables
+  Species Rings  L(r!1,r!2).R(l!1,l!2)
+end observables
+begin reaction rules
+  Bind:  L(r) + R(l) <-> L(r!1).R(l!1)                        kon, koff
+  Close: L(r!1,r).R(l!1,l) -> L(r!1,r!2).R(l!1,l!2)          kring
+end reaction rules
+end model
+generate_network({overwrite=>1,max_agg=>4})

@@ -18,6 +18,7 @@ book:
         - chapters/01-reaction-networks.qmd
         - chapters/02-rules.qmd
         - chapters/03-stochastic.qmd
+        - chapters/04-rules-guide.qmd
     - references.qmd
   appendices:
     - appendices/a-installation.qmd

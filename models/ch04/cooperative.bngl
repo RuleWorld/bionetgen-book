@@ -1,0 +1,28 @@
+# Cooperative binding of a ligand to a receptor with two sites, a and b.
+# Binding to site b is ten times faster once site a is occupied.
+begin model
+begin parameters
+  L0     1      # ligand (uM)
+  R0     1      # receptor (uM)
+  kon1   0.1    # binding to the first site (1/uM/min)
+  kon2   1      # binding to the second site once the first is filled (1/uM/min)
+  koff   0.1    # unbinding (1/min)
+end parameters
+begin molecule types
+  L(r)
+  R(a,b)
+end molecule types
+begin seed species
+  L(r)    L0
+  R(a,b)  R0
+end seed species
+begin observables
+  Molecules Lbound  L(r!+)
+end observables
+begin reaction rules
+  First:  L(r) + R(a,b)   <-> L(r!1).R(a!1,b)    kon1, koff
+  Second: L(r) + R(a!+,b) <-> L(r!1).R(a!+,b!1)  kon2, koff
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>60,n_steps=>120})

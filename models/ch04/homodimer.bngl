@@ -1,0 +1,23 @@
+# Symmetric binding: two identical molecules form a dimer.
+begin model
+begin parameters
+  A0    100     # monomer (uM)
+  kf    0.01    # dimerization (1/uM/min)
+  kr    0.1     # dissociation (1/min)
+end parameters
+begin molecule types
+  A(d)
+end molecule types
+begin seed species
+  A(d)  A0
+end seed species
+begin observables
+  Molecules Afree  A(d)
+  Species   Dimer  A(d!1).A(d!1)
+end observables
+begin reaction rules
+  Dimerize: A(d) + A(d) <-> A(d!1).A(d!1)  kf, kr
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>20,n_steps=>200})
