@@ -1,4 +1,5 @@
-# A bivalent ligand and a bivalent receptor form chains and rings. Network
+# A bivalent ligand and a bivalent receptor form chains and rings. The rule
+# Close joins the free ends of a chain of any length into a ring. Network
 # generation is capped with max_agg, the largest complex allowed (in molecules).
 begin model
 begin parameters
@@ -17,11 +18,15 @@ begin seed species
   R(l,l)  R0
 end seed species
 begin observables
-  Species Rings  L(r!1,r!2).R(l!1,l!2)
+  # Rings of two and four molecules
+  Species Ring2  L(r!1,r!2).R(l!1,l!2)
+  Species Ring4  L(r!1,r!2).R(l!2,l!3).L(r!3,r!4).R(l!4,l!1)
 end observables
 begin reaction rules
   Bind:  L(r) + R(l) <-> L(r!1).R(l!1)                        kon, koff
-  Close: L(r!1,r).R(l!1,l) -> L(r!1,r!2).R(l!1,l!2)          kring
+  # A free L site and a free R site in the same complex bind, closing a ring;
+  # the reverse opens a ring without splitting the complex
+  Close: L(r).R(l) <-> L(r!1).R(l!1)                         kring, koff
 end reaction rules
 end model
 generate_network({overwrite=>1,max_agg=>4})

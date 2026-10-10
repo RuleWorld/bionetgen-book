@@ -1,0 +1,75 @@
+# Ligand-induced receptor internalization and recycling.
+# Ligand-bound receptors are carried from the plasma membrane (PM) to the
+# endosomal membrane (EM), and the bound ligand moves with them from the
+# medium (EC) into the endosome lumen (EN). In the acidic endosome the ligand
+# dissociates faster; free receptors recycle to the surface, and free ligand
+# is degraded.
+#
+# Units as in stat_compartments.bngl: compartment sizes are NAV = N_A*V*1e-6
+# (V in liters), the number of molecules per uM; amounts are molecules per
+# cell, and bimolecular rate constants are in 1/uM/min. All endosomes in the
+# cell are lumped into one compartment.
+
+begin model
+begin parameters
+  NA_pL      6.022e5          # molecules per uM in 1 pL
+  um3        1e-3             # 1 um^3 in pL
+  V_EC       1000             # medium per cell (pL)
+  A_PM       500              # plasma membrane area (um^2)
+  V_CP       1                # cytoplasm (pL)
+  A_EM       50               # total endosomal membrane area (um^2)
+  V_EN       0.01             # total endosome lumen volume (pL)
+  h          0.01             # effective membrane thickness (um)
+  Lconc      0.1              # ligand in the medium (nM)
+  L0         Lconc*1e-3*V_EC*NA_pL   # ligand molecules per cell
+  R0         10000            # receptor chains per cell
+  kon        600              # ligand binding (1/uM/min)
+  koff       0.06             # ligand unbinding at neutral pH (1/min)
+  kx         10               # crosslinking in a membrane (1/uM/min)
+  koff_endo  1000             # extra unbinding in the acidic endosome (1/min)
+  kint       0.2              # internalization of ligand-bound receptor (1/min)
+  kint0      0.02             # constitutive internalization of free receptor (1/min)
+  krec       0.1              # recycling of free receptor (1/min)
+  kdegL      0.05             # degradation of free ligand in endosomes (1/min)
+end parameters
+begin compartments
+  EC  3  V_EC*NA_pL                   # medium
+  PM  2  A_PM*h*um3*NA_pL     EC      # plasma membrane
+  CP  3  V_CP*NA_pL           PM      # cytoplasm
+  EM  2  A_EM*h*um3*NA_pL     CP      # endosomal membrane
+  EN  3  V_EN*NA_pL           EM      # endosome lumen
+end compartments
+begin molecule types
+  L(r,r)
+  R(l)
+end molecule types
+begin seed species
+  L(r,r)@EC    L0
+  R(l)@PM      R0
+end seed species
+begin observables
+  Molecules  R_surface    R()@PM
+  Molecules  R_internal   R()@EM
+  Molecules  R_bound_EM   R(l!+)@EM
+  Molecules  L_medium     L()@EC
+  Molecules  L_endosome   L()@EN              # all ligand in the lumen, free or bound
+  Species    L_free_EN    L(r,r)@EN           # free ligand in the lumen
+  Species    L_one_EN     L(r!+,r)@EN         # ligand held by one endosomal receptor
+  Molecules  R_free_EM    R(l)@EM             # free receptors in endosomes
+end observables
+begin reaction rules
+  # Binding applies on both membranes
+  LRbind:      L(r,r) + R(l) <-> L(r!1,r).R(l!1)          kon, koff
+  Crosslink:   L(r!+,r) + R(l) <-> L(r!+,r!1).R(l!1)      kx, koff
+  # Acidic pH speeds ligand release in endosomes
+  EndoRelease: R(l!1)@EM.L(r!1) -> R(l)@EM + L(r)        koff_endo
+  # Surface-to-surface species transport: the whole complex moves
+  Internalize: @PM:R(l!+) -> @EM:R(l!+)                  kint
+  Constitutive: @PM:R(l) -> @EM:R(l)                     kint0
+  Recycle:     @EM:R(l) -> @PM:R(l)                      krec
+  # Free ligand is degraded in the endosome
+  LigandDeg:   L(r,r)@EN -> 0                            kdegL
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>120,n_steps=>240})

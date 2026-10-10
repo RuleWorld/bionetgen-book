@@ -19,3 +19,4 @@
 
 **/*.quarto_ipynb
 /worksheets/keys/
+/papers

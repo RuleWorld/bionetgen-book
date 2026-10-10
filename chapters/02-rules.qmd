@@ -45,7 +45,7 @@ transcriptional activity. The N-terminal and coiled-coil regions mediate
 further interactions and nuclear transport, and the DNA-binding domain binds
 promoters.
 
-![Domain structure of STAT3. Each domain or modification site can interact or change state largely independently of the others.](../figures/stat-domains){#fig-stat-domains width=75%}
+![Domain structure of STAT3. Each domain or modification site is a separate place where the protein can interact or change state.](../figures/stat-domains){#fig-stat-domains width=75%}
 
 The receptor and JAK have their own sets of sites, as does nearly every
 signaling protein, and these sites can be occupied or modified in
@@ -58,12 +58,17 @@ known binding partners, a single ErbB1 homodimer can take more than $5\times
 10^{10}$ distinct states, and an ErbB1–ErbB3 heterodimer more than $3.8\times
 10^9$, far more than could be named individually [@Creamer2012].
 
-However, most interactions depend on only one or two sites. Whether SOCS binds
-the receptor does not depend on whether a STAT molecule elsewhere in the
-complex is phosphorylated on serine 727. Rule-based modeling takes advantage
-of this locality by writing each interaction once, mentioning only the sites
-it depends on, so that the interaction applies to every complex that has those
-sites in the required states.
+However, each interaction is often thought to depend on only a few sites. In
+our model, for example, we assume that whether SOCS binds the receptor does
+not depend on whether a STAT molecule elsewhere in the complex is
+phosphorylated on serine 727. Rule-based modeling takes advantage of such
+locality by writing each interaction once, mentioning only the sites it
+depends on, so that the interaction applies to every complex that has those
+sites in the required states. The ability to represent sites separately does
+not mean that they behave independently, however. Locality is an assumption
+of the model, which can be tested, and where one site affects another, for
+example through an allosteric change, the rule must include that site in its
+context.
 
 ## Molecules with structure
 
@@ -315,9 +320,12 @@ SOCS is absent. A receptor can now carry STAT and SOCS at the same time.
 
 ### Cytokines bring two receptor chains together
 
-Most cytokine receptors signal as dimers, in which a ligand with two binding
-sites brings together two receptor chains whose JAKs activate each other. We give the ligand
-two identical sites and require the dimer for activation (@fig-dimer):
+Many cytokine receptors signal when the cytokine brings together two receptor
+chains whose JAKs activate each other. The chains are often of different
+types, some receptors are assembled before the cytokine binds, and some
+cytokines assemble larger complexes. We take the simplest case, in which a
+ligand with two identical sites bridges two identical chains, and require the
+dimer for activation (@fig-dimer):
 
 ```{python}
 #| echo: false
@@ -354,8 +362,10 @@ complexes.
 
 ### A second phosphorylation site
 
-STAT3 is also phosphorylated on serine 727, independently of tyrosine 705.
-This change requires one new component and a single rule:
+STAT3 is also phosphorylated on serine 727. We treat this as a separate
+process that does not depend on the state of tyrosine 705, an assumption that
+could be changed by adding `Y~0` or `Y~P` to the context of the rule. The
+change requires one new component and a single rule:
 
 ```{python}
 #| echo: false

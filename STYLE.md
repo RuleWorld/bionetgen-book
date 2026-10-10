@@ -8,13 +8,13 @@ the science.
 
 ## Voice: write the way Jim Faeder writes
 
-The book should sound like its author. The models for this voice are his
+The book should sound like its author. The models for this voice are the
 single-author paper (Faeder, *J. Chem. Phys.* **99**, 7664, 1993) and the
-introduction to his thesis (*The X₂⁻ Files*, University of Colorado, 1998). His
+introduction to the thesis (*The X₂⁻ Files*, University of Colorado, 1998). The
 later first-author papers (*J. Immunol.* 2003; *Methods Mol. Biol.* 2009) are
-secondary models. A comparison on 2026-10-10 found that the drafts matched his
-sentence length (about 30 words on average) but not the way his sentences
-connect. The patterns below come from those texts. The quoted sentences are his.
+secondary models. A comparison on 2026-10-10 found that the drafts matched the author's
+sentence length (about 30 words on average) but not the way the author's sentences
+connect. The patterns below come from those texts. The quoted sentences are the author's.
 
 1. **Set up a concept with "Consider…".**
    - "Consider the case of an atom-molecule complex."

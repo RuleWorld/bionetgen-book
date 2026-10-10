@@ -31,8 +31,9 @@ begin reaction rules
   # explicit mechanism
   ESbind: E(s) + S(e,Y~0) <-> E(s!1).S(e!1,Y~0)  kon, koff
   EScat:  E(s!1).S(e!1,Y~0) -> E(s) + S(e,Y~P)    kcat
-  # Michaelis-Menten rate law (enzyme is not consumed)
-  MMcat:  E2() + S2(Y~0) -> E2() + S2(Y~P)        MM(kcat,Km)
+  # Michaelis-Menten rate law: substrate first, then enzyme, which is not
+  # consumed. MM treats the amounts matching the two patterns as totals.
+  MMcat:  S2(Y~0) + E2() -> S2(Y~P) + E2()        MM(kcat,Km)
 end reaction rules
 end model
 generate_network({overwrite=>1})

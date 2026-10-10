@@ -1,0 +1,52 @@
+# Trivalent ligand, bivalent receptor (TLBR).
+# Each ligand has three identical receptor-binding sites and each receptor two
+# identical ligand-binding sites, so ligands and receptors can form aggregates
+# of any size. Goldstein and Perelson (Biophys. J. 45:1109, 1984) showed that
+# for strong crosslinking there is a range of ligand concentrations in which
+# most receptors join a single giant aggregate, a sol-gel transition.
+# Parameters follow the TLBR example distributed with BioNetGen and used by
+# Sneddon et al. (Nat. Methods 8:177, 2011) to test NFsim.
+#
+# Amounts are molecule numbers. The binding rate constants are set by two
+# dimensionless parameters:
+#   cTot = 3*kp1*Lig_tot/koff  (ligand concentration)
+#   beta = kp2*Rec_tot/koff    (crosslinking strength)
+
+begin model
+begin parameters
+  Lig_tot    4200             # ligand molecules
+  Rec_tot    300              # receptor molecules
+  cTot       0.84             # dimensionless ligand concentration
+  beta       50               # dimensionless crosslinking constant
+  koff       0.01             # unbinding (1/s)
+  kp1        cTot*koff/(3*Lig_tot)   # binding of free ligand (1/molecule/s)
+  kp2        beta*koff/Rec_tot       # crosslinking by bound ligand (1/molecule/s)
+end parameters
+begin molecule types
+  R(l,l)
+  L(r,r,r)
+end molecule types
+begin seed species
+  R(l,l)      Rec_tot
+  L(r,r,r)    Lig_tot
+end seed species
+begin observables
+  Molecules  Bonds      L(r!1).R(l!1)
+  Molecules  FreeRsite  R(l)
+  Species    Rmonomer   R(l,l)
+  Species    Clusters   R(l!1).L(r!1,r!2).R(l!2)
+end observables
+begin reaction rules
+  # Free ligand binds a receptor site
+  FreeBind:   L(r,r,r) + R(l) <-> L(r!1,r,r).R(l!1)                kp1, koff
+  # A ligand with one or two sites bound captures another receptor
+  Cross1:     L(r!+,r,r) + R(l) <-> L(r!+,r!1,r).R(l!1)            kp2, koff
+  Cross2:     L(r!+,r!+,r) + R(l) <-> L(r!+,r!+,r!1).R(l!1)        kp2, koff
+end reaction rules
+end model
+
+# A finite approximation for network-based methods: no aggregate with more
+# than six molecules. Network-free simulation needs no such cap.
+generate_network({overwrite=>1,max_agg=>6})
+writeXML()
+simulate({method=>"nf",t_end=>2000,n_steps=>200})

@@ -1,0 +1,120 @@
+# The cytokine-STAT-SOCS circuit of Chapter 2 (stat_rbm5_stat_dimer.bngl)
+# placed in a cell with a nucleus. Ligand binds receptors on the plasma
+# membrane; STAT is phosphorylated at the receptor in the cytoplasm; pSTAT
+# dimers are imported into the nucleus, where they bind the SOCS promoter and
+# are dephosphorylated; unphosphorylated STAT shuttles between cytoplasm and
+# nucleus; SOCS mRNA is exported to the cytoplasm and translated there.
+#
+# Units: compartment sizes are NAV = N_A*V*1e-6 (V in
+# liters), the number of molecules per uM, so amounts are
+# molecule numbers per cell and bimolecular rate constants are in 1/uM/min.
+# A membrane's size is its area times an effective thickness h.
+# Parameter values are illustrative, chosen to be of plausible magnitude.
+
+begin model
+begin parameters
+  NA_pL      6.022e5          # molecules per uM in 1 pL
+  um3        1e-3             # 1 um^3 in pL
+  # geometry
+  V_EC       1000             # medium per cell, 1e6 cells/mL (pL)
+  A_PM       500              # plasma membrane area (um^2)
+  V_CP       1                # cytoplasm (pL)
+  A_NM       100              # nuclear envelope area (um^2)
+  V_NU       0.25             # nucleus (pL)
+  h          0.01             # effective membrane thickness (um)
+  # initial amounts
+  L0         0.001*V_EC*NA_pL # 1 nM cytokine in the medium (molecules)
+  R0         10000            # receptor chains per cell
+  S0         0.1*V_CP*NA_pL   # 0.1 uM STAT, initially all cytoplasmic
+  G0         2                # SOCS gene copies
+  # ligand and receptor
+  kon        600              # ligand binding, 1e7 /M/s (1/uM/min)
+  koff       0.06             # ligand unbinding (1/min)
+  kx         10               # receptor crosslinking in the membrane (1/uM/min)
+  # STAT activation
+  kSon       1                # STAT docking (1/uM/min)
+  kSoff      1                # STAT undocking (1/min)
+  kact       5                # STAT phosphorylation (1/min)
+  kdiss      1                # pSTAT release (1/min)
+  kdim       100              # pSTAT dimerization (1/uM/min)
+  kundim     0.1              # pSTAT dimer dissociation (1/min)
+  kdephos    0.1              # nuclear dephosphorylation (1/min)
+  # nuclear transport
+  kimp       1                # pSTAT dimer import (1/min)
+  kimp0      0.05             # STAT monomer import (1/min)
+  kexp       0.2              # STAT monomer export (1/min)
+  # SOCS expression and feedback
+  kGon       10               # pSTAT dimer-promoter binding (1/uM/min)
+  kGoff      1                # unbinding (1/min)
+  ktx        10               # transcription per bound promoter (1/min)
+  kmexp      0.5              # mRNA export (1/min)
+  kmdeg      0.05             # mRNA degradation (1/min)
+  ktl        10               # translation per mRNA (1/min)
+  kSOCSdeg   0.05             # SOCS degradation (1/min)
+  kSOCSon    10               # SOCS-receptor binding (1/uM/min)
+  kSOCSoff   0.01             # SOCS unbinding (1/min)
+end parameters
+begin compartments
+  EC  3  V_EC*NA_pL                   # extracellular medium
+  PM  2  A_PM*h*um3*NA_pL     EC      # plasma membrane
+  CP  3  V_CP*NA_pL           PM      # cytoplasm
+  NM  2  A_NM*h*um3*NA_pL     CP      # nuclear envelope
+  NU  3  V_NU*NA_pL           NM      # nucleus
+end compartments
+begin molecule types
+  L(r,r)                      # bivalent cytokine
+  R(l,s,socs)                 # receptor chain
+  S(r,Y~0~P,d,g)              # STAT
+  G(s)                        # SOCS promoter
+  mSOCS()                     # SOCS mRNA
+  SOCS(r)                     # SOCS protein
+end molecule types
+begin seed species
+  L(r,r)@EC          L0
+  R(l,s,socs)@PM     R0
+  S(r,Y~0,d,g)@CP    S0
+  G(s)@NU            G0
+end seed species
+begin observables
+  Molecules  STAT_CP    S()@CP
+  Molecules  STAT_NU    S()@NU
+  Molecules  pSTAT_CP   S(Y~P)@CP
+  Molecules  pSTAT_NU   S(Y~P)@NU
+  Species    Rdimer     L(r!1,r!2).R(l!1).R(l!2)
+  Molecules  Gbound     G(s!+)
+  Molecules  mSOCS_NU   mSOCS()@NU
+  Molecules  mSOCS_CP   mSOCS()@CP
+  Molecules  SOCS       SOCS()
+  Molecules  R_SOCS     R(socs!+)
+end observables
+begin reaction rules
+  # --- at the membrane: no compartments named, BNG finds where each applies ---
+  LRbind:     L(r,r) + R(l) <-> L(r!1,r).R(l!1)                 kon, koff
+  Crosslink:  L(r!+,r) + R(l) <-> L(r!+,r!1).R(l!1)             kx, koff
+  Sbind:      R(l!+,s) + S(r,Y~0) -> R(l!+,s!1).S(r!1,Y~0)      kSon
+  Sunbind:    R(s!1).S(r!1,Y~0) -> R(s) + S(r,Y~0)              kSoff
+  Sact:       L(r!+,r!2).R(l!2,socs,s!1).S(r!1,Y~0) -> L(r!+,r!2).R(l!2,socs,s!1).S(r!1,Y~P)   kact
+  Srelease:   R(s!1).S(r!1,Y~P) -> R(s) + S(r,Y~P)              kdiss
+  SOCSbind:   R(l!+,socs) + SOCS(r) -> R(l!+,socs!1).SOCS(r!1)  kSOCSon
+  SOCSunbind: R(socs!1).SOCS(r!1) -> R(socs) + SOCS(r)          kSOCSoff
+  # --- dimerization occurs in both cytoplasm and nucleus ---
+  Sdimer:     S(r,Y~P,d,g) + S(r,Y~P,d,g) <-> S(r,Y~P,d!1,g).S(r,Y~P,d!1,g)   kdim, kundim
+  # --- nuclear transport ---
+  # pSTAT dimers are imported as a unit (species transport)
+  Import:     @CP:S(d!1).S(d!1) -> @NU:S(d!1).S(d!1)            kimp
+  # unphosphorylated monomers shuttle in both directions (molecule transport)
+  Shuttle:    S(r,Y~0,d,g)@CP <-> S(r,Y~0,d,g)@NU               kimp0, kexp
+  # --- in the nucleus ---
+  Sdephos:    S(d,g,Y~P)@NU -> S(d,g,Y~0)@NU                    kdephos
+  # a dimer binds one promoter through either of its two DNA-binding sites
+  Gbind:      S(d!1,g).S(d!1,g) + G(s) <-> S(d!1,g!2).S(d!1,g).G(s!2)   kGon, kGoff
+  Transcribe: G(s!+) -> G(s!+) + mSOCS()@NU                     ktx
+  mExport:    mSOCS()@NU -> mSOCS()@CP                          kmexp
+  # --- in the cytoplasm ---
+  Translate:  mSOCS()@CP -> mSOCS()@CP + SOCS(r)@CP             ktl
+  mRNAdeg:    mSOCS() -> 0                                      kmdeg
+  SOCSdeg:    SOCS(r) -> 0                                      kSOCSdeg
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>240,n_steps=>480})

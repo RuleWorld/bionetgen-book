@@ -1,0 +1,437 @@
+# Network-free simulation {#sec-network-free}
+
+```{python}
+#| include: false
+import sys, time, tempfile, os
+sys.path.insert(0, "../scripts")
+from bookutils import show_bngl, show_lines, model_path, bng_xml, aggregate_sizes
+import numpy as np
+import matplotlib.pyplot as plt
+import bngsim
+```
+
+Every simulation method in Part I begins by generating the reaction network
+implied by the rules. For the models of @sec-rules this is quick, since the
+networks contain at most a few hundred reactions. For many models of signaling,
+however, the network is too large to generate, and for some it is infinite.
+@sec-rules-guide showed one example. A ligand with two binding sites and a
+receptor with two sites form chains of any length, and the network grows
+without limit unless the size of complexes is capped. Hlavacek and coworkers
+reviewed this combinatorial explosion, which they called the "complexity of
+complexes," and argued for models built from molecular domains rather than
+lists of species [@Hlavacek2003]. In this
+chapter we describe how a rule-based model can be simulated without generating
+its network, use the method to study the aggregation of receptors by a
+trivalent ligand, and discuss when network-free simulation is and is not the
+right choice.
+
+::: {.callout-note}
+## Learning goals
+
+After this chapter you should be able to:
+
+- explain why the network generated from a set of rules can be too large to
+  use, and recognize models where this happens;
+- describe how a network-free simulator applies rules directly to individual
+  molecules;
+- run network-free simulations with bngsim and analyze the complexes they
+  produce;
+- verify a network-free simulation against a network-based method;
+- choose between network-based and network-free methods for a given model.
+:::
+
+## Rules without a network
+
+Consider the stochastic simulation algorithm of @sec-stochastic. At each step
+it computes the propensity of every reaction from the numbers of molecules of
+each species, chooses a reaction with probability proportional to its
+propensity, and updates the species counts. The cost of each step grows with
+the number of reactions, and the list of reactions must be known in advance.
+
+A network-free simulator applies the same logic to rules instead of reactions.
+The state of the system is a collection of individual molecules, each with its
+components, states, and bonds, and a complex is a set of molecules connected
+by bonds. The simulator proceeds as follows:
+
+1. For each rule, it keeps a list of the molecules (or groups of molecules)
+   that match each reactant pattern. The propensity of the rule is its rate
+   constant times the number of ways the rule can be applied, which for a
+   bimolecular rule is the product of the lengths of the two lists, corrected
+   for symmetry.
+2. It chooses the time of the next event from the total propensity of all
+   rules and chooses a rule with probability proportional to its propensity,
+   just as Gillespie's algorithm chooses a reaction.
+3. It picks reactants at random from the lists of the chosen rule and checks
+   any conditions that the lists do not capture, for example that two
+   reactants of a `+` rule belong to different complexes. If a condition fails,
+   nothing happens, and the step is a null event.
+4. Otherwise it applies the rule, changing bonds and states of the chosen
+   molecules, and updates the lists for the molecules that changed and their
+   neighbors.
+
+Since the simulator never enumerates species or reactions, the cost of a step
+depends on the number of rules and on the size of the neighborhood that a rule
+changes, but not on the size of the network. Memory grows with the number of
+molecules rather than the number of species. The price is that every
+simulation is stochastic and tracks each molecule, so the cost grows with the
+number of molecules and the number of events, and, as we will see, with the
+size of the complexes.
+
+The first network-free simulators appeared at about the same time. Danos,
+Feret, Fontana, and Krivine developed a scalable method for the Kappa language
+[@Danos2007], and Yang, Monine, Faeder, and Hlavacek introduced a kinetic Monte
+Carlo method for BNGL, which they used to study multivalent ligand–receptor
+binding [@Yang2008]. Colvin and coworkers then wrote RuleMonkey, which
+implements an exact method that avoids null events [@Colvin2010], and Michael
+Sneddon, the author, and Thierry Emonet wrote NFsim, which is designed for
+large models and supports functional rate laws [@Sneddon2011]. bngsim includes both NFsim and RuleMonkey.
+
+## Running a network-free simulation
+
+Network-free simulators read the rules of a model from an XML file that
+BioNetGen writes with the action `writeXML()`. The model file itself needs no
+changes. In BNGL, the action `simulate({method=>"nf"})` writes the XML file and
+runs NFsim in one step. In Python, bngsim provides a session object that loads
+the XML file and runs the simulation:
+
+```python
+xml = bng_xml("ch03", "stat_ssa_feedback")    # runs BioNetGen's writeXML()
+with bngsim.NfsimSession(str(xml)) as nf:
+    nf.initialize(seed=1)
+    result = nf.simulate(0, 240, n_points=49)
+```
+
+The session returns the same `Result` object as the network-based methods,
+with the observables of the model as functions of time. Since NFsim tracks
+individual molecules, amounts must be numbers of molecules, as for the SSA,
+and rate constants must be in per-molecule units (@sec-stochastic).
+
+The first test of any network-free simulation is a model whose network is
+small enough to simulate both ways. The stochastic STAT–SOCS model of
+@sec-stochastic is such a model. @fig-nf-ssa compares averages over many runs
+of NFsim and of the SSA.
+
+```{python}
+#| label: fig-nf-ssa
+#| fig-cap: "A network-free simulation agrees with a network-based one. Mean total pSTAT (a) and SOCS (b) from 40 stochastic simulations of the STAT–SOCS model of Chapter 3 with the SSA (solid) and with NFsim (dashed). Shaded bands show the standard deviation across cells for the SSA."
+#| fig-subcap: ["", ""]
+#| layout-ncol: 2
+#| code-fold: true
+n_runs = 40
+model = bngsim.Model.from_bngl(model_path("ch03", "stat_ssa_feedback"))
+ssa = bngsim.Simulator(model, method="ssa")
+model.reset()
+t0 = time.perf_counter()
+ssa_runs = ssa.run_replicates(n_runs, t_span=(0, 240), n_points=97, seed=1)
+t_ssa = time.perf_counter() - t0
+
+xml = str(bng_xml("ch03", "stat_ssa_feedback"))
+t0 = time.perf_counter()
+nf_runs = []
+for seed in range(1, n_runs + 1):
+    with bngsim.NfsimSession(xml) as nf:
+        nf.initialize(seed=seed)
+        nf_runs.append(nf.simulate(0, 240, n_points=97))
+t_nf = time.perf_counter() - t0
+
+t = ssa_runs[0].time
+for obs, label in [("pSTAT", "pSTAT (molecules)"), ("SOCS", "SOCS (molecules)")]:
+    a = np.array([r.observables[obs] for r in ssa_runs])
+    b = np.array([r.observables[obs] for r in nf_runs])
+    fig, ax = plt.subplots(figsize=(4.2, 3.2))
+    ax.fill_between(t, a.mean(0) - a.std(0), a.mean(0) + a.std(0), color="#1B365D", alpha=0.15, lw=0)
+    ax.plot(t, a.mean(0), label="SSA")
+    ax.plot(t, b.mean(0), "--", label="NFsim")
+    ax.set_xlabel("time (min)")
+    ax.set_ylabel(label)
+    ax.legend(loc="upper right")
+    plt.show()
+```
+
+The two methods agree to within the statistical error of the averages. They
+are not equally fast, however. On the computer that built this book, the 40
+NFsim runs took `{python} f"{t_nf:.1f}"` s and the 40 SSA runs took
+`{python} f"{t_ssa:.1f}"` s, a factor of `{python} f"{t_nf/t_ssa:.0f}"`. When
+the network is small, following individual molecules costs more than updating
+the counts of a few dozen species, and the network-based method is the better
+choice.
+
+## Receptor aggregation and the sol–gel transition
+
+Consider now a model whose network cannot be generated. Many immune receptors,
+such as the high-affinity IgE receptor FcεRI on mast cells, signal when a
+multivalent antigen crosslinks them into aggregates. Goldstein and Perelson
+studied the simplest model that produces large aggregates, a ligand with three
+identical binding sites and a receptor with two [@Goldstein1984]. They showed
+that when crosslinking is strong enough, there is a range of ligand
+concentrations in which most receptors join a single aggregate whose size is
+limited only by the number of receptors on the cell. This is a sol–gel phase
+transition, like the one that turns a solution of polymers into a gel.
+
+`tlbr.bngl` contains three rules: binding of free ligand to a receptor, and
+crosslinking by a ligand that already has one or two sites bound.
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch06", "tlbr", "FreeBind:", "Cross1:", "Cross2:")
+```
+
+The `+` in the crosslinking rules means that the ligand and the receptor must
+belong to different complexes, so the rules do not close rings. The binding
+rate constants are set by two dimensionless parameters introduced by Goldstein
+and Perelson, a ligand concentration $c = 3 k_{p1} L_\mathrm{tot}/k_\mathrm{off}$
+and a crosslinking constant $\beta = k_{p2} R_\mathrm{tot}/k_\mathrm{off}$.
+
+These three rules generate an infinite network. @tbl-tlbr-net shows the
+network generated when complexes are limited to `max_agg` molecules, together
+with the time BioNetGen takes to generate it.
+
+```{python}
+#| label: tbl-tlbr-net
+#| tbl-cap: "Size of the network generated from tlbr.bngl and the time to generate it, as a function of max_agg, the largest complex allowed."
+#| code-fold: true
+import pandas as pd
+src = model_path("ch06", "tlbr").read_text()
+src = src[: src.index("end model") + len("end model")]
+rows = []
+for max_agg in [3, 5, 7, 9]:
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "tlbr.bngl")
+        open(path, "w").write(src + f"\ngenerate_network({{overwrite=>1,max_agg=>{max_agg}}})\n")
+        t0 = time.perf_counter()
+        m = bngsim.Model.from_bngl(path, cache=False)
+        rows.append({"max_agg": max_agg, "species": m.n_species, "reactions": m.n_reactions,
+                     "time (s)": round(time.perf_counter() - t0, 1)})
+net = pd.DataFrame(rows).set_index("max_agg")
+net
+```
+
+```{python}
+#| include: false
+growth = (net["time (s)"].iloc[-1] / net["time (s)"].iloc[-2]) ** 0.5
+```
+
+The network grows slowly, but the time to generate it grows by a factor of
+about `{python} f"{growth:.0f}"` for each molecule added to the largest complex,
+since BioNetGen must compare each new complex with every known species to
+decide whether it is new. A gel containing hundreds of molecules is far out of
+reach.
+
+```{python}
+#| label: fig-tlbr
+#| fig-cap: "The sol–gel transition in the TLBR model with $\\beta$ = 50, simulated with NFsim. (a) Fraction of receptors in the largest aggregate at equilibrium as a function of the dimensionless ligand concentration c. (b) Ligand–receptor bonds from NFsim (points) and from the ODEs for the network with aggregates capped at eight molecules (line)."
+#| fig-subcap: ["", ""]
+#| layout-ncol: 2
+#| code-fold: true
+xml = str(bng_xml("ch06", "tlbr"))
+Rtot = 300
+c_values = [0.01, 0.03, 0.1, 0.3, 0.84, 3, 10, 30, 100]
+largest, bonds_nf = [], []
+species_file = os.path.join(tempfile.gettempdir(), "tlbr_final.species")
+for c in c_values:
+    frac, b = [], []
+    for seed in [1, 2]:
+        with bngsim.NfsimSession(xml) as nf:
+            nf.set_param("cTot", c)
+            nf.initialize(seed=seed)
+            r = nf.simulate(0, 2000, n_points=5)
+            nf.save_species(species_file)
+        frac.append(aggregate_sizes(species_file, "R").max() / Rtot)
+        b.append(r.observables["Bonds"][-1])
+    largest.append(np.mean(frac))
+    bonds_nf.append(np.mean(b))
+
+# network-based ODEs with complexes capped at eight molecules
+with tempfile.TemporaryDirectory() as d:
+    path = os.path.join(d, "tlbr8.bngl")
+    open(path, "w").write(src + "\ngenerate_network({overwrite=>1,max_agg=>8})\n")
+    m8 = bngsim.Model.from_bngl(path)
+ode8 = bngsim.Simulator(m8, method="ode")
+c_fine = np.logspace(-2, 2, 25)
+bonds_ode = []
+for c in c_fine:
+    m8.set_param("cTot", c)
+    m8.reset()
+    bonds_ode.append(ode8.run(t_span=(0, 2000), n_points=3).observables["Bonds"][-1])
+
+fig, ax = plt.subplots(figsize=(4.2, 3.2))
+ax.semilogx(c_values, largest, "o-")
+ax.set_xlabel("ligand concentration, $c$")
+ax.set_ylabel("fraction of receptors\nin largest aggregate")
+ax.set_ylim(0, 1)
+plt.show()
+
+fig, ax = plt.subplots(figsize=(4.2, 3.2))
+ax.semilogx(c_fine, np.array(bonds_ode) / Rtot, "-", color="#5B6770", label="ODE, max_agg = 8")
+ax.semilogx(c_values, np.array(bonds_nf) / Rtot, "o", label="NFsim")
+ax.set_xlabel("ligand concentration, $c$")
+ax.set_ylabel("bonds per receptor")
+ax.set_ylim(0.6, 2.05)
+ax.legend(loc="lower right")
+plt.show()
+
+i84 = c_values.index(0.84)
+ode84 = np.interp(np.log(0.84), np.log(c_fine), bonds_ode)
+err84 = 1 - ode84 / bonds_nf[i84]
+```
+
+@fig-tlbr shows the transition. At the lowest and highest ligand
+concentrations, the receptors form small aggregates, since at low
+concentration there is too little ligand to link them and at high
+concentration each receptor site is occupied by a different ligand. In
+between, a single aggregate forms that contains most of the receptors, for
+example `{python} f"{100*largest[i84]:.0f}"`% of them at $c$ = 0.84. Since the
+simulation contains only `{python} f"{Rtot}"` receptors, the size of the gel is
+limited by the size of the system, which is the finite-cell analog of the
+infinite aggregate of the theory.
+
+The network capped at eight molecules gives the wrong answer in this range. At $c$ = 0.84 it underestimates the number of ligand–receptor bonds by
+`{python} f"{100*err84:.0f}"`%, because the cap forbids the aggregates that the
+system actually forms. Outside the gel phase, where aggregates are small, the
+capped network and NFsim approach each other, and at the lowest and highest
+concentrations they agree. It is important to note that this agreement
+cannot be known in advance. The only way to check that a cap is adequate is to
+compare with a larger cap or with a network-free simulation, as recommended in
+@sec-rules-guide.
+
+Monine and coworkers used network-free simulations of this kind to compare the
+TLBR model with measurements of a trivalent antigen binding IgE–FcεRI on mast
+cells [@Monine2010]. They found that the simple model predicts extensive
+aggregation at antigen doses where cells secrete strongly, and examined how
+steric constraints and the formation of rings would change the prediction. Such
+questions require keeping track of the structure of each aggregate, which a
+network-free simulation does automatically.
+
+## Cost and scaling
+
+```{python}
+#| label: fig-nf-scaling
+#| fig-cap: "The cost of a network-free simulation depends on the size of the complexes as well as the number of molecules. Time to simulate the TLBR model to equilibrium (t = 500 s) with NFsim, with the numbers of ligands and receptors multiplied by a common factor and $\\beta$ fixed, in the sol phase (c = 100) and in the gel phase (c = 0.84). The dashed lines have slopes 1 and 2."
+#| code-fold: true
+factors = [1, 2, 4, 8]
+n_mol = 4500 * np.array(factors)
+cost = {}
+for c in [100, 0.84]:
+    cost[c] = []
+    for f in factors:
+        with bngsim.NfsimSession(xml) as nf:
+            nf.set_param("cTot", c)
+            nf.set_param("Lig_tot", 4200 * f)
+            nf.set_param("Rec_tot", 300 * f)
+            nf.initialize(seed=1)
+            t0 = time.perf_counter()
+            nf.simulate(0, 500, n_points=3)
+            cost[c].append(time.perf_counter() - t0)
+fig, ax = plt.subplots(figsize=(4.2, 3.2))
+ax.loglog(n_mol, cost[100], "o-", label="sol, $c$ = 100")
+ax.loglog(n_mol, cost[0.84], "o-", label="gel, $c$ = 0.84")
+ax.loglog(n_mol, cost[100][0] * n_mol / n_mol[0], "k--", lw=1)
+ax.loglog(n_mol, cost[0.84][0] * (n_mol / n_mol[0])**2, "k--", lw=1)
+ax.set_xlabel("number of molecules")
+ax.set_ylabel("simulation time (s)")
+ax.legend(loc="upper left")
+plt.show()
+slope_sol = np.polyfit(np.log(n_mol), np.log(cost[100]), 1)[0]
+slope_gel = np.polyfit(np.log(n_mol), np.log(cost[0.84]), 1)[0]
+```
+
+@fig-nf-scaling shows how the cost of a network-free simulation grows with the
+size of the system. The rate of events grows in proportion to the number of
+molecules, and in the sol phase the cost of each event stays about the same,
+so the time to simulate a fixed interval grows linearly (the fitted slope is
+`{python} f"{slope_sol:.1f}"`). In the gel phase the time grows about as the
+square of the number of molecules (slope `{python} f"{slope_gel:.1f}"`). This
+is because the gel grows with the system, and some events require the
+simulator to traverse the whole complex that contains the reactants. When a
+bond in the gel breaks, for example, the simulator must determine whether the
+complex has split in two, and a `+` rule must check that its reactants belong
+to different complexes. Network-free simulation thus trades the cost of the
+network, which depends on the number of possible species, for a cost that
+depends on the molecules actually present and on how they are connected. @tbl-methods summarizes
+when each kind of method is the better choice.
+
+| | Network-based (ODE, SSA, PSA) | Network-free (NFsim, RuleMonkey) |
+|---|---|---|
+| Requires | a finite network small enough to generate | rules only |
+| Cost grows with | number of reactions | number of molecules and events |
+| Results | deterministic (ODE) or stochastic | stochastic only |
+| Suited to | small and medium networks, fitting, steady states, sensitivity analysis | large or infinite networks, aggregation, polymerization, large models with many sites |
+| Information on complexes | counts of each species | the structure of every complex |
+
+: Choosing a simulation method. {#tbl-methods}
+
+A practical consequence is that a modeler can often use both kinds of methods
+on the same model. The BNGL file is the same, so a model can be developed and
+fitted with a network capped at a moderate size and then checked with a
+network-free simulation, or simulated network-free in the regime where the
+cap fails.
+
+## Common mistakes
+
+1. **Using network-free simulation by default.** When the network is small,
+   NFsim is much slower than the SSA, and an ODE solution may suffice. Use
+   network-free methods when the network is large or infinite.
+2. **Too few runs.** Network-free results are stochastic. Average over enough
+   runs to make the statistical error smaller than the effect being studied,
+   and report it.
+3. **Concentration units.** As for the SSA, amounts must be numbers of
+   molecules and rate constants must be per molecule (@sec-stochastic).
+4. **Rings formed by intermolecular rules.** A `+` between reactant patterns
+   means that the reactants are in different complexes. bngsim enforces this
+   by default, but the standalone NFsim program does not unless it is given
+   the `-bscb` option. Write ring closure as a separate unimolecular rule, as
+   in @sec-rules-guide.
+5. **Expensive observables.** `Species` observables require the simulator to
+   track whole complexes, which can slow a simulation with very large
+   aggregates. Use `Molecules` observables where they suffice.
+6. **Unsupported features.** Some BNGL features available to network-based
+   methods, such as compartments (@sec-compartments), are not supported by
+   every network-free simulator. Check the documentation of the simulator
+   before relying on them.
+
+## Summary
+
+- Rules for multivalent binding can generate networks that are too large to
+  generate or infinite.
+- A network-free simulator applies rules directly to individual molecules,
+  choosing events with the same probabilities as Gillespie's algorithm, so its
+  cost does not depend on the size of the network.
+- bngsim runs NFsim and RuleMonkey from the XML file that BioNetGen writes
+  from the model, with no change to the model.
+- A network-free simulation agrees with the SSA on models with small networks,
+  but it is slower there.
+- The TLBR model shows a sol–gel transition in which most receptors join one
+  aggregate. A capped network misses this behavior, while a network-free
+  simulation captures it.
+- Network-based and network-free methods can be used on the same BNGL model.
+  Choose by the size of the network and the questions being asked.
+
+## Exercises
+
+1. **RuleMonkey.** Repeat @fig-nf-ssa with `bngsim.RuleMonkeySession` in place
+   of `NfsimSession`. Do the results agree? Which is faster for this model and
+   for TLBR?
+2. **Crosslinking strength.** Repeat the scan of @fig-tlbr with β = 5 and β =
+   500. How does the range of ligand concentrations in which a gel forms
+   depend on β? Is there a value of β below which no gel forms? Compare your
+   results with the theory of @Goldstein1984.
+3. **Aggregate size distribution.** At $c$ = 0.01, 0.84, and 30, plot the
+   distribution of the number of receptors per aggregate from the final
+   species of an NFsim run. How does the distribution change across the
+   transition?
+4. **When does a cap work?** For $c$ = 30, find the smallest `max_agg` for
+   which the ODE solution for the number of bonds agrees with NFsim to within
+   2%. Repeat for $c$ = 0.84. What does the difference tell you?
+5. **Rings.** Add a unimolecular rule that lets a bound ligand bind a free
+   receptor site in the same aggregate, with rate constant `kring`. Simulate
+   with NFsim for several values of `kring`. How do rings affect the size of
+   the largest aggregate? Compare with the discussion in @Monine2010.
+
+## Further reading
+
+@Sneddon2011 describes NFsim, its algorithm, and its performance on large
+models. @Yang2008 and @Colvin2010 describe the kinetic Monte Carlo method and
+RuleMonkey. @Danos2007 describes network-free simulation for the Kappa
+language. @Goldstein1984 is the classic theory of aggregation by a trivalent
+ligand, and @Monine2010 compares it with experiment.

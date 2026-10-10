@@ -152,12 +152,18 @@ enzyme and substrate followed by catalysis and release:
 show_lines("ch04", "enzyme", "ESbind:", "EScat:")
 ```
 
-When the enzyme–substrate complex is short-lived and the enzyme is much less
-abundant than the substrate, the complex reaches a quasi-steady state, and the
-rate of phosphorylation takes the familiar Michaelis–Menten form,
-$v = k_\mathrm{cat}[\mathrm{E}][\mathrm{S}]/(K_m + [\mathrm{S}])$, with
-$K_m = (k_\mathrm{off} + k_\mathrm{cat})/k_\mathrm{on}$. BNGL provides this
-form as the built-in rate law `MM(kcat,Km)`:
+When the enzyme–substrate complex reaches a quasi-steady state quickly
+compared with the depletion of substrate, the rate of phosphorylation takes
+the familiar Michaelis–Menten form,
+$$
+v = \frac{k_\mathrm{cat}[\mathrm{E}]_T[\mathrm{S}]}{K_m + [\mathrm{S}]},
+$$ {#eq-mm}
+where $[\mathrm{E}]_T$ is the total enzyme, free and bound, $[\mathrm{S}]$ is
+the free substrate, and $K_m = (k_\mathrm{off} + k_\mathrm{cat})/k_\mathrm{on}$.
+The classical form of the approximation also replaces free by total
+substrate, which is valid only when little substrate is bound to enzyme, that
+is, when $[\mathrm{E}]_T \ll [\mathrm{S}]_T + K_m$ [@Borghans1996]. BNGL
+provides a Michaelis–Menten rate law as the built-in `MM(kcat,Km)`:
 
 ```{python}
 #| echo: false
@@ -165,29 +171,70 @@ form as the built-in rate law `MM(kcat,Km)`:
 show_lines("ch04", "enzyme", "MMcat:")
 ```
 
-The enzyme appears on both sides of the rule, since it is not consumed, and
-its free amount enters the rate. @fig-enzyme compares the two descriptions.
+The substrate is written first and the enzyme second, and the enzyme appears
+on both sides of the rule, since it is not consumed. `MM` treats the amounts
+of the species that match the two reactant patterns as the totals
+$[\mathrm{S}]_T$ and $[\mathrm{E}]_T$, and it does not assume that they are
+nearly equal to the free amounts. It computes the free substrate from
+$$
+[\mathrm{S}] = \tfrac12\left[\left([\mathrm{S}]_T - K_m - [\mathrm{E}]_T\right)
++ \sqrt{\left([\mathrm{S}]_T - K_m - [\mathrm{E}]_T\right)^2 + 4K_m[\mathrm{S}]_T}\,\right]
+$$
+and uses this value in @eq-mm. This is the total quasi-steady-state
+approximation of @Borghans1996, which accounts for the substrate held by the
+enzyme and remains accurate at much higher enzyme concentrations
+[@Tzafriri2003]. When $[\mathrm{E}]_T \ll [\mathrm{S}]_T + K_m$, free and
+total substrate are nearly equal, and `MM` reduces to the classical form.
+@fig-enzyme compares the explicit mechanism, `MM`, and the classical form.
 
 ```{python}
 #| label: fig-enzyme
-#| fig-cap: "Phosphorylation by a kinase described by an explicit binding–catalysis mechanism (solid) and by the Michaelis–Menten rate law (dashed). The two agree when the enzyme is scarce (1% of the substrate) and differ slightly when it is abundant (50%)."
+#| fig-cap: "Phosphorylation by a kinase described by an explicit binding–catalysis mechanism (solid), by the MM rate law (dashed), and by the classical Michaelis–Menten form (dotted), with 1 µM substrate. (a) Scarce enzyme, 0.01 µM: the three agree. (b) Abundant enzyme, 0.5 µM: the classical form runs too fast, while MM remains close to the explicit mechanism."
+#| fig-subcap: ["", ""]
+#| layout-ncol: 2
 #| code-fold: true
 model = bngsim.Model.from_bngl(model_path("ch04", "enzyme"))
 sim = bngsim.Simulator(model, method="ode")
-for E0, color, t_end in [(0.01, "#1B365D", 200), (0.5, "#C8102E", 200)]:
+kcat, Km, S0 = (model.get_param(p) for p in ("kcat", "Km", "S0"))
+
+def classical(t, E0):
+    # Integrate dSp/dt = kcat*E0*S/(Km + S) with S = S0 - Sp (Euler, fine grid)
+    sp = np.zeros_like(t)
+    for i in range(1, len(t)):
+        S = S0 - sp[i-1]
+        sp[i] = sp[i-1] + (t[i] - t[i-1]) * kcat * E0 * S / (Km + S)
+    return sp
+
+def t_half(t, y):
+    return np.interp(S0 / 2, y, t)
+
+half = {}
+for E0, t_end in [(0.01, 200), (0.5, 8)]:
     model.set_param("E0", E0)
     model.reset()
-    r = sim.run(t_span=(0, t_end), n_points=401)
-    plt.plot(r.time, r.observables["Sp_explicit"], color=color, label=f"explicit, $E_0$ = {E0} µM")
-    plt.plot(r.time, r.observables["Sp_MM"], "--", color=color, label=f"MM rate law, $E_0$ = {E0} µM")
+    r = sim.run(t_span=(0, t_end), n_points=4001)
+    cl = classical(r.time, E0)
+    half[E0] = {"explicit": t_half(r.time, r.observables["Sp_explicit"]),
+                "MM": t_half(r.time, r.observables["Sp_MM"]),
+                "classical": t_half(r.time, cl)}
+    fig, ax = plt.subplots(figsize=(4.2, 3.2))
+    ax.plot(r.time, r.observables["Sp_explicit"], color="#1B365D", label="explicit")
+    ax.plot(r.time, r.observables["Sp_MM"], "--", color="#C8102E", label="MM")
+    ax.plot(r.time, cl, ":", color="0.4", label="classical")
+    ax.set_xlabel("time (min)")
+    ax.set_ylabel("phosphorylated substrate (µM)")
+    ax.legend(loc="lower right")
+    plt.show()
 model.set_param("E0", 0.01)
-plt.xlabel("time (min)")
-plt.ylabel("phosphorylated substrate (µM)")
-plt.legend(loc="lower right");
 ```
 
-The two agree closely when the enzyme is scarce, as the derivation of the
-Michaelis–Menten form requires. The rate law is more economical, since it
+The three descriptions agree closely when the enzyme is scarce. With enzyme at
+half the concentration of substrate, the classical form overestimates the
+rate, since it counts substrate held by the enzyme as free, and it predicts
+that half of the substrate is phosphorylated in
+`{python} f"{half[0.5]['classical']:.2f}"` min rather than
+`{python} f"{half[0.5]['explicit']:.2f}"` min. `MM` gives
+`{python} f"{half[0.5]['MM']:.2f}"` min. The rate law is more economical, since it
 introduces no enzyme–substrate complexes, and its two parameters,
 $k_\mathrm{cat}$ and $K_m$, are the ones usually reported by enzymologists. The
 explicit mechanism, on the other hand, is required whenever the
@@ -199,9 +246,10 @@ The rate law also hides a trap, which appeared while the models for this
 chapter were being written. In the first version of `enzyme.bngl`, the same
 kinase molecule was used for both the explicit and the Michaelis–Menten
 rules. The
-explicit rules tied up most of the kinase in enzyme–substrate complexes, and
-since the `MM` rate law uses the amount of free enzyme, the Michaelis–Menten
-reaction ran about five times too slowly. The model file now uses a separate
+explicit rules tied up most of the kinase in enzyme–substrate complexes. The
+`MM` rule counted as its total enzyme only the kinase that matched its enzyme
+pattern, which excluded the kinase held in these complexes, and the
+Michaelis–Menten reaction ran about five times too slowly. The model file now uses a separate
 kinase for each mechanism. The general lesson is that an enzyme described by an
 `MM` rate law should not also participate in explicit binding rules for the
 same reaction.
@@ -286,14 +334,28 @@ binding between complexes and one for closing a ring:
 show_lines("ch04", "aggregation", "Bind:", "Close:")
 ```
 
-The rule `Close` has a single reactant pattern, `L(r!1,r).R(l!1,l)`, in which
-the dot joins a ligand and a receptor in the same complex. It therefore
-describes binding between two free sites in the same complex, a unimolecular
-reaction with rate constant `kring` in units of inverse time. In contrast, the
-rule `Bind` has two reactant patterns separated by `+`, and BioNetGen applies
-it only to sites on different complexes. The distinction matters because the
-rate of ring closure, which depends on the flexibility and geometry of the
-complex, has no relation to the rate of binding between molecules in solution.
+The rule `Close` has a single reactant pattern, `L(r).R(l)`, in which the dot
+requires the ligand and the receptor to be in the same complex without
+requiring a bond between them. It therefore describes binding between a free
+ligand site and a free receptor site anywhere in one complex, which closes a
+chain of any length into a ring, and it is a unimolecular reaction with rate
+constant `kring` in units of inverse time. In contrast, the rule `Bind` has two
+reactant patterns separated by `+`, and BioNetGen applies it only to sites on
+different complexes. The distinction matters because the rate of ring
+closure, which depends on the flexibility and geometry of the complex, has no
+relation to the rate of binding between molecules in solution. Our model
+gives every ring the same `kring`, although a real chain closes at a rate that
+depends on its length.
+
+The same distinction applies in reverse. The reverse of `Bind` breaks a bond
+only when the two products are separate complexes, and the reverse of `Close`
+breaks a bond only when the product remains a single complex, which is the
+case for a bond in a ring. Each bond in the network is thus broken by exactly
+one of the two rules, and BioNetGen enforces this by checking that the
+products of each reaction match the `+` or `.` written in the rule. Without
+the reverse of `Close`, rings could never open, and the model would slowly
+convert every molecule into rings. Since only a ligand end and a receptor end
+can close, only chains with equal numbers of ligands and receptors form rings.
 
 Without a limit, the rule `Bind` generates chains of every length, and network
 generation never finishes. The option `max_agg` in the `generate_network`
@@ -302,17 +364,20 @@ network grows as the cap is raised.
 
 ```{python}
 #| label: tbl-agg
-#| tbl-cap: "Size of the network generated from aggregation.bngl as a function of max_agg, the largest complex allowed."
+#| tbl-cap: "Size of the network generated from aggregation.bngl as a function of max_agg, the largest complex allowed, and the number of distinct rings it contains."
 #| code-fold: true
-import pandas as pd, tempfile, os
+import pandas as pd, tempfile, os, re
 src = model_path("ch04", "aggregation").read_text()
+# A ring is a species with no free site, r or l, on any molecule.
 rows = []
 for max_agg in [2, 4, 6, 8, 10]:
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "aggregation.bngl")
         open(path, "w").write(src.replace("max_agg=>4", f"max_agg=>{max_agg}"))
         m = bngsim.Model.from_bngl(path, cache=False)
-    rows.append({"max_agg": max_agg, "species": m.n_species, "reactions": m.n_reactions})
+    rings = [sp for sp in m.species_names if not re.search(r"[rl][,)]", sp)]
+    rows.append({"max_agg": max_agg, "species": m.n_species,
+                 "reactions": m.n_reactions, "rings": len(rings)})
 pd.DataFrame(rows).set_index("max_agg")
 ```
 
@@ -344,8 +409,9 @@ results alone.
    containing the deleted molecule unless `DeleteMolecules` is given or the
    products are written explicitly.
 5. **Mixing explicit and lumped descriptions of the same enzyme.** An `MM`
-   rate law uses the free enzyme, so an enzyme that also binds substrate
-   through explicit rules will be partly hidden from it.
+   rate law treats the amount of enzyme matching its pattern as the total
+   enzyme, so an enzyme that also binds substrate through explicit rules will
+   be undercounted.
 6. **Counting the wrong thing.** A `Molecules` observable counts matches and a
    `Species` observable counts complexes. A function of an observable inherits
    this difference.
@@ -362,8 +428,11 @@ results alone.
   identical sites.
 - Context makes rates depend on the state of other sites, and it applies in
   both directions of a reversible rule.
-- Enzymatic modification can be modeled explicitly or with the `MM` rate law.
-  The two agree when the enzyme is scarce.
+- Enzymatic modification can be modeled explicitly or with the `MM` rate law,
+  which uses the total quasi-steady-state approximation. It agrees with the
+  explicit mechanism, and with the classical Michaelis–Menten form, when the
+  enzyme is scarce, and it remains accurate at higher enzyme concentrations
+  than the classical form.
 - Degradation removes the whole complex unless `DeleteMolecules` is used or the
   products are given explicitly.
 - Rate laws can be functions of observables, which is useful for lumping
@@ -389,8 +458,9 @@ results alone.
    receptor. Should the receptor be released or degraded with it? Write both
    versions and compare the adapted level of pSTAT.
 5. **Capping aggregation.** Simulate `aggregation.bngl` with `max_agg` = 4, 6,
-   and 8, and plot the number of rings over time. Is a cap of 4 adequate for
-   these parameters? How would you decide?
+   and 8, and plot the observables `Ring2` and `Ring4` over time. Is a cap of 4
+   adequate for these parameters? How would you decide? What happens to the
+   rings if `Close` is made irreversible?
 
 ## Further reading
 

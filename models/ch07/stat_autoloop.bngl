@@ -1,0 +1,38 @@
+# STAT induces its own synthesis: a positive feedback loop.
+# The STAT1 gene is itself induced by STAT1, so an activating signal raises the
+# amount of STAT available to be activated. Synthesis of STAT is a Hill
+# function of pSTAT, as in hill.bngl of Chapter 4. Receptor activity enters
+# through the activation rate constant kact, which is the parameter scanned.
+# Units are illustrative: concentrations in uM, time in minutes.
+
+begin model
+begin parameters
+  kact     0.1     # STAT activation by receptors (1/min); the input signal
+  kdephos  0.1     # pSTAT dephosphorylation (1/min)
+  ksyn0    0.02    # basal STAT synthesis (uM/min)
+  vmax     1       # maximal induced synthesis (uM/min)
+  K        2       # pSTAT giving half-maximal induction (uM)
+  n        2       # Hill coefficient
+  kdeg     0.1     # STAT degradation (1/min)
+end parameters
+begin molecule types
+  S(Y~0~P)
+end molecule types
+begin seed species
+  S(Y~0)  ksyn0/kdeg
+end seed species
+begin observables
+  Molecules STAT   S()
+  Molecules pSTAT  S(Y~P)
+end observables
+begin functions
+  fsyn() = ksyn0 + vmax*pSTAT^n/(K^n + pSTAT^n)
+end functions
+begin reaction rules
+  Activate:  S(Y~0) <-> S(Y~P)   kact, kdephos
+  Synthesis: 0 -> S(Y~0)         fsyn()
+  Degrade:   S() -> 0            kdeg
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>300,n_steps=>300})

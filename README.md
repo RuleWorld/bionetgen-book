@@ -7,7 +7,7 @@ biological systems with the [BioNetGen](https://bionetgen.org) tools.
 
 **Read the book:** <https://ruleworld.github.io/bionetgen-book/> (web and PDF)
 
-The book is in progress. Chapters 1 and 2 are drafted. The plan for the rest is
+The book is in progress. Chapters 1–7 are drafted. The plan for the rest is
 in [BOOK_PLAN.md](BOOK_PLAN.md).
 
 ## What's here

@@ -19,6 +19,11 @@ book:
         - chapters/02-rules.qmd
         - chapters/03-stochastic.qmd
         - chapters/04-rules-guide.qmd
+    - part: "Building realistic models"
+      chapters:
+        - chapters/05-compartments.qmd
+        - chapters/06-network-free.qmd
+        - chapters/07-analysis.qmd
     - references.qmd
   appendices:
     - appendices/a-installation.qmd

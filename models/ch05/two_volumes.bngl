@@ -1,0 +1,48 @@
+# One binding rule applied in two compartments of different size.
+# The cytoplasm (CP) and nucleus (NU) start with the same numbers of A and B,
+# but the nucleus is four times smaller, so the same molecule numbers give
+# four times the concentration there.
+#
+# Units: compartment sizes are given as NAV = N_A*V*1e-6
+# (V in liters), the number of molecules per uM, so seed
+# species are molecule numbers and bimolecular rate constants are in 1/uM/min.
+# BioNetGen divides each bimolecular rate constant by the size of the
+# compartment in which the reaction occurs.
+
+begin model
+begin parameters
+  NA_pL      6.022e5          # molecules per uM in 1 pL
+  V_CP       1                # cytoplasm volume (pL)
+  V_NU       0.25             # nuclear volume (pL)
+  A_NM       20               # nuclear membrane area (um^2)
+  h          0.01             # effective membrane thickness (um)
+  N0         6.022e4          # molecules of A and of B in each compartment
+  kon        1                # binding (1/uM/min)
+  koff       1                # unbinding (1/min)
+end parameters
+begin compartments
+  CP  3  V_CP*NA_pL                  # cytoplasm
+  NM  2  A_NM*h*1e-3*NA_pL   CP      # nuclear membrane (1 um^3 = 1e-3 pL)
+  NU  3  V_NU*NA_pL          NM      # nucleus
+end compartments
+begin molecule types
+  A(b)
+  B(a)
+end molecule types
+begin seed species
+  A(b)@CP   N0
+  B(a)@CP   N0
+  A(b)@NU   N0
+  B(a)@NU   N0
+end seed species
+begin observables
+  Molecules  AB_CP  A(b!1).B(a!1)@CP
+  Molecules  AB_NU  A(b!1).B(a!1)@NU
+end observables
+begin reaction rules
+  # One rule, no compartment named: it applies wherever A and B meet
+  Bind:  A(b) + B(a) <-> A(b!1).B(a!1)   kon, koff
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>5,n_steps=>100})
