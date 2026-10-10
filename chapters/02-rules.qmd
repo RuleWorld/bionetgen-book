@@ -15,9 +15,10 @@ name, such as L, LR, LRS, LRS~p~, and LR·SOCS. Naming species by hand works for
 twelve species but fails once the model includes what is known about the
 molecules involved, because signaling proteins have many binding and
 modification sites and the number of ways those sites can be combined grows
-combinatorially. Rule-based modeling [@Hlavacek2006] represents molecules as
-structured objects with sites and states, and writes each interaction as a
-**rule** that mentions only the parts of the molecules that matter. BioNetGen
+combinatorially. Rule-based modeling, developed in the early 2000s to address
+this problem [@Blinov2004; @Hlavacek2006], represents molecules as structured
+objects with sites and states, and writes each interaction as a **rule** that
+mentions only the parts of the molecules that matter. BioNetGen
 then generates the reaction network from the rules.
 
 ::: {.callout-note}
@@ -46,11 +47,12 @@ promoters.
 
 ![Domain structure of STAT3. Each domain or modification site can interact or change state largely independently of the others.](../figures/stat-domains){#fig-stat-domains width=75%}
 
-The receptor and JAK have their own sets of sites, and so does nearly every
-signaling protein, and sites can be occupied or modified in combination. A
-protein with $n$ independent sites, each with two states, has $2^n$ possible
-states, and because a complex combines the states of all its parts, the
-number of possible complexes grows faster still. This growth is called
+The receptor and JAK have their own sets of sites, as does nearly every
+signaling protein, and these sites can be occupied or modified in
+combination. Consider a protein with $n$ sites, each of which can be modified
+independently. Such a protein has $2^n$ possible states, and since a complex
+combines the states of all its parts, the number of possible complexes grows
+faster still. This growth is called
 **combinatorial complexity**. In a model of the ErbB receptor family with its
 known binding partners, a single ErbB1 homodimer can take more than $5\times
 10^{10}$ distinct states, and an ErbB1–ErbB3 heterodimer more than $3.8\times
@@ -434,10 +436,11 @@ plt.legend();
 All versions show the SOCS-driven pulse. Blocking the kinase (version 3) gives
 a lower peak and a faster shutoff than blocking docking (version 1).
 Dimerization (version 5) protects pSTAT from the phosphatase, so the response
-lasts much longer. Deciding which mechanism operates in cells requires
-experiments, and rules make it easy to build the alternative models and compare
-their predictions, which is the first step in designing experiments that
-distinguish them.
+lasts much longer. These comparisons demonstrate that mechanistic details
+that are easy to overlook can change the predicted response substantially.
+Deciding which mechanism operates in cells requires experiments, and rules make
+it easy to build the alternative models and compare their predictions, which
+is the first step in designing experiments that distinguish them.
 
 ## When networks are too large to generate
 
