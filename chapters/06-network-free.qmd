@@ -43,10 +43,12 @@ After this chapter you should be able to:
 ## Rules without a network
 
 Consider the stochastic simulation algorithm of @sec-stochastic. At each step
-it computes the propensity of every reaction from the numbers of molecules of
-each species, chooses a reaction with probability proportional to its
-propensity, and updates the species counts. The cost of each step grows with
-the number of reactions, and the list of reactions must be known in advance.
+it uses the propensity of every reaction, computed from the numbers of
+molecules of each species, chooses a reaction with probability proportional to
+its propensity, and updates the species counts. Efficient implementations
+recompute only the propensities that the last reaction changed, but the cost
+of a step still grows with the size of the network, and the list of reactions
+must be known in advance.
 
 A network-free simulator applies the same logic to rules instead of reactions.
 The state of the system is a collection of individual molecules, each with its
@@ -113,7 +115,7 @@ of NFsim and of the SSA.
 
 ```{python}
 #| label: fig-nf-ssa
-#| fig-cap: "A network-free simulation agrees with a network-based one. Mean total pSTAT (a) and SOCS (b) from 40 stochastic simulations of the STAT–SOCS model of Chapter 3 with the SSA (solid) and with NFsim (dashed). Shaded bands show the standard deviation across cells for the SSA."
+#| fig-cap: "A network-free simulation agrees with a network-based one. Mean total pSTAT (a) and SOCS (b) from 40 stochastic simulations of the STAT–SOCS model of Chapter 3 with the SSA (solid) and with NFsim (dashed). Shaded bands show two standard errors of each mean."
 #| fig-subcap: ["", ""]
 #| layout-ncol: 2
 #| code-fold: true
@@ -135,26 +137,39 @@ for seed in range(1, n_runs + 1):
 t_nf = time.perf_counter() - t0
 
 t = ssa_runs[0].time
+within = {}
 for obs, label in [("pSTAT", "pSTAT (molecules)"), ("SOCS", "SOCS (molecules)")]:
     a = np.array([r.observables[obs] for r in ssa_runs])
     b = np.array([r.observables[obs] for r in nf_runs])
+    se_a = a.std(0, ddof=1) / np.sqrt(n_runs)     # standard error of each mean
+    se_b = b.std(0, ddof=1) / np.sqrt(n_runs)
+    # fraction of time points (after t = 0) at which the two means differ by
+    # less than two standard errors of their difference
+    z = np.abs(a.mean(0) - b.mean(0))[1:] / np.sqrt(se_a**2 + se_b**2)[1:]
+    within[obs] = np.mean(z < 2)
     fig, ax = plt.subplots(figsize=(4.2, 3.2))
-    ax.fill_between(t, a.mean(0) - a.std(0), a.mean(0) + a.std(0), color="#1B365D", alpha=0.15, lw=0)
-    ax.plot(t, a.mean(0), label="SSA")
-    ax.plot(t, b.mean(0), "--", label="NFsim")
+    for x, se, style, name in [(a, se_a, "-", "SSA"), (b, se_b, "--", "NFsim")]:
+        line, = ax.plot(t, x.mean(0), style, label=name)
+        ax.fill_between(t, x.mean(0) - 2 * se, x.mean(0) + 2 * se,
+                        color=line.get_color(), alpha=0.15, lw=0)
     ax.set_xlabel("time (min)")
     ax.set_ylabel(label)
     ax.legend(loc="upper right")
     plt.show()
 ```
 
-The two methods agree to within the statistical error of the averages. They
-are not equally fast, however. On the computer that built this book, the 40
-NFsim runs took `{python} f"{t_nf:.1f}"` s and the 40 SSA runs took
-`{python} f"{t_ssa:.1f}"` s, a factor of `{python} f"{t_nf/t_ssa:.0f}"`. When
-the network is small, following individual molecules costs more than updating
-the counts of a few dozen species, and the network-based method is the better
-choice.
+The two methods agree to within the statistical error of the averages. At
+`{python} f"{100*within['pSTAT']:.0f}"`% of the time points for pSTAT and
+`{python} f"{100*within['SOCS']:.0f}"`% for SOCS, the two means differ by less
+than two standard errors of their difference, about the 95% expected if the
+two methods sample the same process. They are not equally fast, however. On
+the computer that built this book, the 40 NFsim runs of this model took
+`{python} f"{t_nf:.1f}"` s and the 40 SSA runs took `{python} f"{t_ssa:.1f}"` s,
+a factor of `{python} f"{t_nf/t_ssa:.0f}"`. For a network as small as this one,
+following individual molecules costs more than updating the counts of a few
+dozen species, and the network-based method is the better choice. Timings
+like these depend on the computer, the software versions, and the model, so
+they should be measured for the model at hand.
 
 ## Receptor aggregation and the sol–gel transition
 
@@ -182,6 +197,13 @@ belong to different complexes, so the rules do not close rings. The binding
 rate constants are set by two dimensionless parameters introduced by Goldstein
 and Perelson, a ligand concentration $c = 3 k_{p1} L_\mathrm{tot}/k_\mathrm{off}$
 and a crosslinking constant $\beta = k_{p2} R_\mathrm{tot}/k_\mathrm{off}$.
+In the scans below we change $c$ by changing $k_{p1}$, with the number of
+ligands fixed at 4200. Since each ligand has three sites and there are only
+600 receptor sites, at most one ligand in seven can be bound, and the free
+ligand stays within 15% of the total. Changing $k_{p1}$ at fixed ligand is
+therefore nearly equivalent to changing the amount of ligand at fixed
+affinity, which is what an experiment does, and the theory, which assumes
+that binding does not deplete the ligand, applies with small corrections.
 
 These three rules generate an infinite network. @tbl-tlbr-net shows the
 network generated when complexes are limited to `max_agg` molecules, together
@@ -189,7 +211,7 @@ with the time BioNetGen takes to generate it.
 
 ```{python}
 #| label: tbl-tlbr-net
-#| tbl-cap: "Size of the network generated from tlbr.bngl and the time to generate it, as a function of max_agg, the largest complex allowed."
+#| tbl-cap: "Size of the network generated from tlbr.bngl as a function of max_agg, the largest complex allowed, and the time for bngsim to load the model, which includes parsing, network generation, and preparation for simulation."
 #| code-fold: true
 import pandas as pd
 src = model_path("ch06", "tlbr").read_text()
@@ -212,35 +234,56 @@ net
 growth = (net["time (s)"].iloc[-1] / net["time (s)"].iloc[-2]) ** 0.5
 ```
 
-The network grows slowly, but the time to generate it grows by a factor of
-about `{python} f"{growth:.0f}"` for each molecule added to the largest complex,
-since BioNetGen must compare each new complex with every known species to
-decide whether it is new. A gel containing hundreds of molecules is far out of
-reach.
+The number of species grows slowly, but on the computer that built this book
+the time to load the model grows by a factor of about
+`{python} f"{growth:.0f}"` for each molecule added to the largest complex. Part
+of the cost is that every complex a rule produces must be compared with the
+species already found to decide whether it is new, and the number of ways
+the rules can be applied grows with the size of the complexes. At this rate,
+a network that includes a gel of hundreds of molecules is far out of reach.
 
 ```{python}
 #| label: fig-tlbr
-#| fig-cap: "The sol–gel transition in the TLBR model with $\\beta$ = 50, simulated with NFsim. (a) Fraction of receptors in the largest aggregate at equilibrium as a function of the dimensionless ligand concentration c. (b) Ligand–receptor bonds from NFsim (points) and from the ODEs for the network with aggregates capped at eight molecules (line)."
+#| fig-cap: "The sol–gel transition in the TLBR model with $\\beta$ = 50, simulated with NFsim. (a) Fraction of receptors in the largest aggregate at equilibrium as a function of the dimensionless ligand concentration c, with the standard error of the mean of three runs. (b) Ligand–receptor bonds from NFsim (points) and from the ODEs for the network with aggregates capped at eight molecules (line)."
 #| fig-subcap: ["", ""]
 #| layout-ncol: 2
 #| code-fold: true
 xml = str(bng_xml("ch06", "tlbr"))
 Rtot = 300
-c_values = [0.01, 0.03, 0.1, 0.3, 0.84, 3, 10, 30, 100]
-largest, bonds_nf = [], []
+koff = 0.01
+c_values = [0.001, 0.01, 0.1, 0.84, 3, 10, 30, 100]
+def t_equil(c):
+    # Free ligand binds a receptor site at rate c*koff/3, so equilibration is
+    # slow at low c. These run lengths were checked against longer runs.
+    return max(1e4, 1.5 / (c * koff))
+largest, largest_se, bonds_nf, drift = [], [], [], []
 species_file = os.path.join(tempfile.gettempdir(), "tlbr_final.species")
 for c in c_values:
-    frac, b = [], []
-    for seed in [1, 2]:
+    frac, b, b_half = [], [], []
+    for seed in [1, 2, 3]:
         with bngsim.NfsimSession(xml) as nf:
             nf.set_param("cTot", c)
             nf.initialize(seed=seed)
-            r = nf.simulate(0, 2000, n_points=5)
+            r = nf.simulate(0, t_equil(c), n_points=3)     # t = 0, t_end/2, t_end
             nf.save_species(species_file)
         frac.append(aggregate_sizes(species_file, "R").max() / Rtot)
         b.append(r.observables["Bonds"][-1])
+        b_half.append(r.observables["Bonds"][1])
     largest.append(np.mean(frac))
+    largest_se.append(np.std(frac, ddof=1) / np.sqrt(len(frac)))
     bonds_nf.append(np.mean(b))
+    drift.append(abs(np.mean(b) - np.mean(b_half)) / np.mean(b))
+
+# the same runs at c = 0.01, stopped early at 2000 s
+early = []
+for seed in [1, 2, 3]:
+    with bngsim.NfsimSession(xml) as nf:
+        nf.set_param("cTot", 0.01)
+        nf.initialize(seed=seed)
+        nf.simulate(0, 2000, n_points=2)
+        nf.save_species(species_file)
+    early.append(aggregate_sizes(species_file, "R").max() / Rtot)
+early = np.mean(early)
 
 # network-based ODEs with complexes capped at eight molecules
 with tempfile.TemporaryDirectory() as d:
@@ -248,15 +291,16 @@ with tempfile.TemporaryDirectory() as d:
     open(path, "w").write(src + "\ngenerate_network({overwrite=>1,max_agg=>8})\n")
     m8 = bngsim.Model.from_bngl(path)
 ode8 = bngsim.Simulator(m8, method="ode")
-c_fine = np.logspace(-2, 2, 25)
+c_fine = np.logspace(-3, 2, 31)
 bonds_ode = []
 for c in c_fine:
     m8.set_param("cTot", c)
     m8.reset()
-    bonds_ode.append(ode8.run(t_span=(0, 2000), n_points=3).observables["Bonds"][-1])
+    bonds_ode.append(ode8.run(t_span=(0, 10 * t_equil(c)), n_points=3).observables["Bonds"][-1])
 
 fig, ax = plt.subplots(figsize=(4.2, 3.2))
-ax.semilogx(c_values, largest, "o-")
+ax.errorbar(c_values, largest, yerr=largest_se, fmt="o-", capsize=2)
+ax.set_xscale("log")
 ax.set_xlabel("ligand concentration, $c$")
 ax.set_ylabel("fraction of receptors\nin largest aggregate")
 ax.set_ylim(0, 1)
@@ -267,33 +311,51 @@ ax.semilogx(c_fine, np.array(bonds_ode) / Rtot, "-", color="#5B6770", label="ODE
 ax.semilogx(c_values, np.array(bonds_nf) / Rtot, "o", label="NFsim")
 ax.set_xlabel("ligand concentration, $c$")
 ax.set_ylabel("bonds per receptor")
-ax.set_ylim(0.6, 2.05)
+ax.set_ylim(0, 2.05)
 ax.legend(loc="lower right")
 plt.show()
 
 i84 = c_values.index(0.84)
-ode84 = np.interp(np.log(0.84), np.log(c_fine), bonds_ode)
-err84 = 1 - ode84 / bonds_nf[i84]
+ode_at = np.interp(np.log(c_values), np.log(c_fine), bonds_ode)
+err = 1 - ode_at / np.array(bonds_nf)      # relative error of the capped ODEs
+err84 = err[i84]
 ```
 
-@fig-tlbr shows the transition. At the lowest and highest ligand
-concentrations, the receptors form small aggregates, since at low
-concentration there is too little ligand to link them and at high
-concentration each receptor site is occupied by a different ligand. In
-between, a single aggregate forms that contains most of the receptors, for
-example `{python} f"{100*largest[i84]:.0f}"`% of them at $c$ = 0.84. Since the
+@fig-tlbr shows the transition. Over a wide range of ligand concentrations,
+a single aggregate forms that contains most of the receptors, for example
+`{python} f"{100*largest[i84]:.0f}"`% of them at $c$ = 0.84. Since the
 simulation contains only `{python} f"{Rtot}"` receptors, the size of the gel is
 limited by the size of the system, which is the finite-cell analog of the
-infinite aggregate of the theory.
+infinite aggregate of the theory. At high concentration each receptor site is
+occupied by a different ligand, and the largest aggregate shrinks to
+`{python} f"{100*largest[-1]:.0f}"`% of the receptors at $c$ = 100. At low
+concentration there is too little ligand to link the receptors, but with
+strong crosslinking the gel persists to low doses, and at $c$ = 0.001 the
+largest aggregate still contains `{python} f"{100*largest[0]:.0f}"`% of them.
+
+Each point in @fig-tlbr is an equilibrium value, and reaching equilibrium
+takes much longer at low concentration, since a free ligand binds a receptor
+site only at the rate $c\,k_\mathrm{off}/3$, which is once every 3×10⁵ s at
+$c$ = 0.001. A run that stops too early underestimates the aggregates. At
+$c$ = 0.01, for example, runs stopped at 2000 s, which is long enough at high
+concentration, give a largest aggregate of
+`{python} f"{100*early:.0f}"`% of the receptors rather than
+`{python} f"{100*largest[c_values.index(0.01)]:.0f}"`%. The runs here last at least 10⁴ s and
+longer at low concentration, and the mean number of bonds changes by at most
+`{python} f"{100*max(drift):.0f}"`% over the second half of each run. Since
+NFsim is stochastic, each point is the mean of three runs, and the error bars
+show its standard error. The scatter is largest at the edges of the gel
+phase, where the size of the largest aggregate fluctuates widely in time.
 
 The network capped at eight molecules gives the wrong answer in this range. At $c$ = 0.84 it underestimates the number of ligand–receptor bonds by
 `{python} f"{100*err84:.0f}"`%, because the cap forbids the aggregates that the
-system actually forms. Outside the gel phase, where aggregates are small, the
-capped network and NFsim approach each other, and at the lowest and highest
-concentrations they agree. It is important to note that this agreement
-cannot be known in advance. The only way to check that a cap is adequate is to
-compare with a larger cap or with a network-free simulation, as recommended in
-@sec-rules-guide.
+system actually forms. At $c$ = 100, where aggregates are small, the capped
+network and NFsim differ by `{python} f"{100*abs(err[-1]):.1f}"`%, but at
+$c$ = 0.001, where large aggregates remain, the cap still causes an error of
+`{python} f"{100*abs(err[0]):.0f}"`%. It is important to note that the size of
+this error cannot be known in advance. The only way to check that a cap is adequate is to
+compare with a larger cap or with a network-free simulation, as recommended
+in @sec-rules-guide.
 
 Monine and coworkers used network-free simulations of this kind to compare the
 TLBR model with measurements of a trivalent antigen binding IgE–FcεRI on mast
@@ -307,7 +369,7 @@ network-free simulation does automatically.
 
 ```{python}
 #| label: fig-nf-scaling
-#| fig-cap: "The cost of a network-free simulation depends on the size of the complexes as well as the number of molecules. Time to simulate the TLBR model to equilibrium (t = 500 s) with NFsim, with the numbers of ligands and receptors multiplied by a common factor and $\\beta$ fixed, in the sol phase (c = 100) and in the gel phase (c = 0.84). The dashed lines have slopes 1 and 2."
+#| fig-cap: "The cost of a network-free simulation depends on the size of the complexes as well as the number of molecules. Time to simulate 500 s of the TLBR model with NFsim, starting from free ligands and receptors, with the numbers of ligands and receptors multiplied by a common factor and $\\beta$ fixed, in the sol phase (c = 100) and in the gel phase (c = 0.84). The dashed lines have slopes 1 and 2."
 #| code-fold: true
 factors = [1, 2, 4, 8]
 n_mol = 4500 * np.array(factors)
@@ -341,8 +403,8 @@ size of the system. The rate of events grows in proportion to the number of
 molecules, and in the sol phase the cost of each event stays about the same,
 so the time to simulate a fixed interval grows linearly (the fitted slope is
 `{python} f"{slope_sol:.1f}"`). In the gel phase the time grows about as the
-square of the number of molecules (slope `{python} f"{slope_gel:.1f}"`). This
-is because the gel grows with the system, and some events require the
+square of the number of molecules (slope `{python} f"{slope_gel:.1f}"`) in
+these measurements. One expects faster than linear growth because the gel grows with the system, and some events require the
 simulator to traverse the whole complex that contains the reactants. When a
 bond in the gel breaks, for example, the simulator must determine whether the
 complex has split in two, and a `+` rule must check that its reactants belong
@@ -399,11 +461,13 @@ cap fails.
   cost does not depend on the size of the network.
 - bngsim runs NFsim and RuleMonkey from the XML file that BioNetGen writes
   from the model, with no change to the model.
-- A network-free simulation agrees with the SSA on models with small networks,
-  but it is slower there.
+- A network-free simulation agrees with the SSA, within statistical error, on
+  a model with a small network, but for that model it is much slower.
 - The TLBR model shows a sol–gel transition in which most receptors join one
   aggregate. A capped network misses this behavior, while a network-free
-  simulation captures it.
+  simulation captures it. Near the edges of the gel phase, and especially at
+  low ligand concentration, equilibration is slow, and run lengths must be
+  checked.
 - Network-based and network-free methods can be used on the same BNGL model.
   Choose by the size of the network and the questions being asked.
 
@@ -413,7 +477,8 @@ cap fails.
    of `NfsimSession`. Do the results agree? Which is faster for this model and
    for TLBR?
 2. **Crosslinking strength.** Repeat the scan of @fig-tlbr with β = 5 and β =
-   500. How does the range of ligand concentrations in which a gel forms
+   500, using run lengths long enough to reach equilibrium at every dose.
+   How does the range of ligand concentrations in which a gel forms
    depend on β? Is there a value of β below which no gel forms? Compare your
    results with the theory of @Goldstein1984.
 3. **Aggregate size distribution.** At $c$ = 0.01, 0.84, and 30, plot the

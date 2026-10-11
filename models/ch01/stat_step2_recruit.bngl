@@ -1,6 +1,6 @@
 # Cytokine-STAT-SOCS signaling: Step 2: STAT binds the ligand-bound receptor
 # Cumulative model: includes steps 1-2. Lines marked '# new' were added in this step.
-# Species have no internal structure here; molecule structure is introduced in Module 2.
+# Species have no internal structure here; molecule structure is introduced in Chapter 2.
 # Units are illustrative: concentrations in uM, time in minutes.
 
 begin model

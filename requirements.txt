@@ -1,5 +1,5 @@
-bngsim>=0.16
-bionetgen>=0.8.7
+bngsim==0.16.0       # pinned: results depend on the simulator version
+bionetgen==0.8.7
 numpy
 pandas
 matplotlib

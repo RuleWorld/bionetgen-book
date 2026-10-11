@@ -137,8 +137,8 @@ sites empty, and `R(a!+,b)` restricts the second rule to receptors with site
 reverse of each rule applies the same context as the forward direction, so
 ligand bound at site `a` can leave only while site `b` is empty. If both sites
 can release their ligand independently, the unbinding reactions must be
-written as separate rules without that context, as we did for STAT in
-@sec-rules.
+written as separate rules without that context, as we did for STAT
+in @sec-rules.
 
 ## Enzymatic modification
 
@@ -416,8 +416,8 @@ results alone.
    `Species` observable counts complexes. A function of an observable inherits
    this difference.
 7. **Inconsistent units.** Rate constants and initial amounts must use the
-   same units, either concentrations or molecule numbers, as discussed in
-   @sec-stochastic.
+   same units, either concentrations or molecule numbers, as discussed
+   in @sec-stochastic.
 
 ## Summary
 

@@ -119,8 +119,9 @@ $$
 The units follow from the rate law. Rates have units of concentration per
 time, so the second-order constant $k_\mathrm{on}$ has units of
 µM⁻¹ min⁻¹ and the first-order constant $k_\mathrm{off}$ has units of
-min⁻¹. Mass action is a good description when molecules are well mixed and
-each reaction event requires a single encounter of its reactants. Later
+min⁻¹. Mass action applies to elementary reactions, and it is a good
+description when molecules are well mixed and each reaction event requires a
+single encounter of its reactants. Later
 chapters consider what happens when these assumptions fail.
 
 ### From reactions to differential equations
@@ -180,7 +181,9 @@ $$
 [\mathrm{L}] + [\mathrm{LR}] = L_0, \qquad [\mathrm{R}] + [\mathrm{LR}] = R_0,
 $$
 
-where $L_0$ and $R_0$ are the initial concentrations. These **conservation
+where $L_0$ and $R_0$ are the total concentrations of ligand and receptor,
+free and bound. When the system starts with no complex, as here, they are the
+initial concentrations of L and R. These **conservation
 laws** appear as linear dependencies among the rows of $\mathbf{S}$. Here the
 rows for L and R are both equal to minus the row for LR, so only one of the
 three equations is independent.
@@ -213,8 +216,9 @@ $$
 \mathbf{X}(t+\Delta t) \approx \mathbf{X}(t) + \Delta t\;\mathbf{S}\,\mathbf{v}(\mathbf{X}(t)).
 $$
 
-In practice, reactions in a network occur on very different time scales.
-This makes the equations **stiff**, meaning that simple methods like
+In practice, reactions in a network often occur on very different time
+scales. When the fastest processes relax much more quickly than the dynamics
+of interest, the equations are **stiff**, meaning that simple methods like
 Euler's need impractically small steps to remain stable. Production solvers such as
 CVODE adapt the step size and use implicit methods designed for stiff
 systems. BioNetGen and bngsim use CVODE for ODE simulation.
@@ -248,8 +252,8 @@ plt.legend(loc="center right");
 
 Given that at $L_0 = 10$ µM the ligand is in large excess over both $K_D$ and
 $R_0$, one expects almost every receptor to be bound, and the simulation
-confirms this. Adding more ligand cannot increase the response further, since
-the receptors are already **saturated**. Binding is also faster at higher
+confirms this. Adding more ligand can increase the response only slightly,
+since the receptors are already nearly **saturated**. Binding is also faster at higher
 ligand concentration. Near equilibrium the complex relaxes at rate
 $k_\mathrm{on}([\mathrm{L}] + [\mathrm{R}]) + k_\mathrm{off}$, which grows
 with the amount of free ligand.
@@ -383,7 +387,13 @@ show_new("ch01", "stat_step4_release")
 ```
 
 Total pSTAT now rises to a **steady state** set by the balance between
-activation and dephosphorylation (@fig-step4). The observable `pSTAT` sums all
+activation and dephosphorylation (@fig-step4). A steady state differs from the
+binding equilibrium above. At equilibrium every reaction is balanced by its
+reverse, whereas here STAT cycles continuously through phosphorylation,
+release, and dephosphorylation, and the amounts stay constant only because
+these irreversible steps run at equal rates. Maintaining such a cycle
+requires a source of energy, which in cells is the ATP consumed by the
+kinase. The observable `pSTAT` sums all
 species that contain phosphorylated STAT. Its definition lists them by name,
 `LRSp Sp`, a chore we return to in @sec-rules.
 
@@ -538,8 +548,8 @@ Second, ODEs treat concentrations as continuous and deterministic. A cell may
 contain only one or two copies of the SOCS gene and a handful of mRNA
 molecules. At such small numbers the random timing of individual reactions
 matters, and genetically identical cells respond differently. The same
-reaction network can be simulated stochastically, which is the subject of
-@sec-stochastic.
+reaction network can be simulated stochastically, which is the subject
+of @sec-stochastic.
 
 ## Summary
 

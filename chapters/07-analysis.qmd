@@ -18,8 +18,8 @@ settles and whether it oscillates on the way, and whether it can settle in
 more than one state. The tools that answer these questions are older than
 rule-based modeling and apply to any model that can be written as a set of
 ODEs. In this chapter we apply them to the cytokine–STAT–SOCS model of
-@sec-reaction-networks, extending the pulse-shape exercise of the Module 1
-worksheet, and to a variant of the circuit with positive feedback that acts
+@sec-reaction-networks, extending the exercise on the shape of the pSTAT
+pulse at the end of that chapter, and to a variant of the circuit with positive feedback that acts
 as a switch with memory.
 
 ::: {.callout-note}
@@ -59,8 +59,8 @@ for row, total in zip(np.array(laws["coefficients"]), laws["constants"]):
 ```
 
 Each law is a combination of species whose total does not change, which is
-the statement that a left null vector of the stoichiometry matrix exists
-(@sec-reaction-networks). With `{python} laws["n_laws"]` conservation laws, the
+the statement that a left null vector of the stoichiometry matrix
+exists (@sec-reaction-networks). With `{python} laws["n_laws"]` conservation laws, the
 state of the system is determined by
 `{python} model.n_species - laws["n_laws"]` independent variables, and the
 remaining species follow from the totals. Conservation laws matter in two
@@ -132,6 +132,29 @@ part, every small deviation decays and the steady state is locally stable. If
 any has a positive real part, some deviation grows and the steady state is
 unstable. If the largest real part is zero, the linear analysis is
 inconclusive.
+
+The binding reaction of @sec-reaction-networks shows how this works in the
+simplest case. With the two conservation laws, the state is determined by a
+single variable, $x = [\mathrm{LR}]$, which obeys
+
+$$
+\frac{dx}{dt} = f(x) = k_\mathrm{on}(L_0 - x)(R_0 - x) - k_\mathrm{off}\,x .
+$$
+
+The Jacobian of this reduced system is a $1\times1$ matrix,
+
+$$
+J = \frac{df}{dx} = -k_\mathrm{on}\left[(L_0 - x) + (R_0 - x)\right] - k_\mathrm{off}
+  = -\left(k_\mathrm{on}([\mathrm{L}] + [\mathrm{R}]) + k_\mathrm{off}\right),
+$$
+
+and its single eigenvalue is negative for any concentrations, so the
+equilibrium is stable. A small deviation decays at the rate
+$k_\mathrm{on}([\mathrm{L}] + [\mathrm{R}]) + k_\mathrm{off}$, which is the
+relaxation rate given in @sec-reaction-networks. Had we kept all three
+species as variables, the Jacobian would be a $3\times3$ matrix with this
+eigenvalue and two zero eigenvalues, one for each conservation law. The
+STAT–SOCS model is treated the same way, with more variables.
 
 ```{python}
 #| echo: false
@@ -251,8 +274,8 @@ explains where the square root comes from.
 
 ## Sensitivity analysis
 
-The worksheet for Module 1 asked how doubling each parameter changes the time
-of the pSTAT peak, its height, and the adapted level. **Sensitivity analysis**
+An exercise in @sec-reaction-networks asked how doubling each parameter
+changes the time of the pSTAT peak, its height, and the adapted level. **Sensitivity analysis**
 makes this question systematic. The **normalized sensitivity coefficient** of
 an output $y$ to a parameter $p$ is
 
@@ -264,7 +287,16 @@ the percentage change in $y$ per percentage change in $p$ for small changes.
 A coefficient of 1 means that $y$ is proportional to $p$, a coefficient of
 −1 that it is inversely proportional, and a coefficient of 0 that $p$ has no
 effect. Normalized coefficients have no units, so they can be compared across
-parameters of different kinds. The idea goes back to metabolic control
+parameters of different kinds. For example, when ligand is in large excess over
+receptor, the fraction of receptors bound at equilibrium is
+$y = [\mathrm{L}]/([\mathrm{L}] + K_D)$. Since
+$\ln y = \ln [\mathrm{L}] - \ln([\mathrm{L}] + K_D)$, the sensitivity to the
+dissociation constant is
+$S_{K_D}^y = -K_D/([\mathrm{L}] + K_D)$. With 1 µM ligand and $K_D$ = 0.1 µM,
+$S_{K_D}^y \approx -0.09$, so a 10% increase in $K_D$ lowers the fraction bound
+by about 0.9%. The sensitivity is −1/2 when $[\mathrm{L}] = K_D$, and it
+approaches −1 at low ligand, where the fraction bound is proportional to
+$1/K_D$. The idea goes back to metabolic control
 analysis, in which Heinrich and Rapoport, and independently Kacser and Burns,
 asked how the flux through a metabolic pathway is shared among its enzymes
 [@Heinrich1974].
@@ -342,6 +374,15 @@ affect the steady state only through the totals of the conservation laws, and
 the solver's parameter sensitivities hold those totals fixed, so for the
 initial amounts the finite-difference values are the correct ones.
 
+```{python}
+#| include: false
+# occupancy of receptors by SOCS and of the promoter at the adapted state
+model.reset()
+d = sim.steady_state(method="newton").to_dict()
+socs_occ = d["LRSOCS()"] / (d["LR()"] + d["LRS()"] + d["LRSp()"] + d["LRSOCS()"])
+prom_occ = d["GSp()"] / (d["G()"] + d["GSp()"])
+```
+
 For the adapted level, `{python} len(half)` of the `{python} len(params)`
 parameters have coefficients close to +1/2 or −1/2. Consider the feedback loop at the adapted state, where
 nearly all ligand-bound receptors carry SOCS. The rate of STAT phosphorylation
@@ -354,10 +395,18 @@ $[\mathrm{pSTAT}] \propto A/[\mathrm{SOCS}] \propto A/[\mathrm{pSTAT}]$, where
 $A$ collects the parameters that favor signaling. The adapted level is thus
 proportional to $\sqrt{A}$, and every parameter that enters $A$ or the
 SOCS–pSTAT proportionality as a simple factor has a sensitivity of ±1/2. The
-same argument explains the square-root dependence on dose in @fig-dose. The
-negative feedback loop halves the sensitivity of the adapted state to almost
-every parameter, which is one way in which feedback makes a response less
-sensitive to variation in the amounts of its components.
+argument rests on three conditions, that SOCS occupies nearly all
+ligand-bound receptors, that the promoter is far from saturation, and that
+production and removal are linear in the relevant species. At the adapted
+state of this model, SOCS occupies
+`{python} f"{100*socs_occ:.0f}"`% of the ligand-bound receptors and pSTAT
+occupies `{python} f"{100*prom_occ:.0f}"`% of the promoters, so the first two
+conditions hold, and the other reactions of the model are first order or
+bimolecular with one partner in excess. The same argument explains the square-root dependence on dose in
+@fig-dose, over the range of doses in which the conditions hold. Under these
+conditions, the negative feedback loop halves the sensitivity of the adapted
+state to most of its parameters, which is one way in which feedback can make
+a response less sensitive to variation in the amounts of its components.
 
 Local sensitivities describe the effect of small changes around one set of
 parameter values. They can change sign or magnitude elsewhere in parameter
@@ -368,8 +417,9 @@ in Part III.
 
 ## Switches and memory {#sec-switches}
 
-Negative feedback stabilizes a response. Positive feedback can do the
-opposite and create two stable states, so that a cell responds to a graded
+Negative feedback, as in the STAT–SOCS loop, can make a response less
+sensitive to its parameters, although with delays it can also produce
+oscillations. Positive feedback can create two stable states, so that a cell responds to a graded
 signal with an all-or-none switch. Ferrell and Machleder found such a switch
 in the maturation of *Xenopus* oocytes, where individual oocytes respond to
 progesterone in an all-or-none fashion because the MAPK cascade is embedded in
@@ -398,7 +448,7 @@ scan.
 
 ```{python}
 #| label: fig-hysteresis
-#| fig-cap: "A positive feedback loop makes a switch with memory. (a) Steady-state STAT as a function of receptor activity, from continuation scans with increasing (circles) and decreasing (crosses) kact. Between the two thresholds the system is bistable. (b) A transient signal switches the system on permanently. With kact held at 0.3 min⁻¹ inside the bistable range, a 60-min pulse of strong signal (shaded) moves the system to the upper state, where it remains after the signal returns to 0.3."
+#| fig-cap: "A positive feedback loop makes a switch with memory. (a) Steady-state STAT as a function of receptor activity, from continuation scans with increasing (circles) and decreasing (crosses) kact, and from the exact solution of the steady-state equations, with stable (solid) and unstable (dashed) branches. Between the two saddle-node bifurcations (shaded) the system is bistable. (b) A transient signal switches the system to the upper state. With kact held at 0.3 min⁻¹ inside the bistable range, a 60-min pulse of strong signal (shaded) moves the system to the upper state, where it remains after the signal returns to 0.3."
 #| fig-subcap: ["", ""]
 #| layout-ncol: 2
 #| code-fold: true
@@ -414,10 +464,33 @@ S_down = np.array([res.observables["STAT"][-1] for res in down])[::-1]
 k_on = k_values[np.argmax(S_up > 2)]
 k_off = k_values[np.argmax(S_down > 2)]
 
+# Exact steady states. At steady state pSTAT = kact*S0/(kdephos + kdeg) and
+# synthesis balances degradation, fsyn(pSTAT) = kdeg*STAT, so each value of
+# pSTAT gives one value of kact and of total STAT, including on the unstable
+# branch, which no forward simulation converges to.
+P = {k: auto.get_param(k) for k in ["kdephos", "ksyn0", "vmax", "K", "n", "kdeg"]}
+sp = np.logspace(-3, 1.5, 3000)
+fsyn = P["ksyn0"] + P["vmax"] * sp**P["n"] / (P["K"]**P["n"] + sp**P["n"])
+ratio = fsyn / (P["kdeg"] * sp) - 1
+keep = ratio > 0
+k_branch = (P["kdephos"] + P["kdeg"]) / ratio[keep]
+sp, S_branch = sp[keep], fsyn[keep] / P["kdeg"]
+stable = []
+for k, p_ss, S_ss in zip(k_branch, sp, S_branch):
+    auto.set_param("kact", k)
+    J = np.asarray(auto.jacobian(np.array([S_ss - p_ss, p_ss])))
+    stable.append(np.linalg.eigvals(J).real.max() < 0)
+stable = np.array(stable)
+turn = np.where(np.diff(np.sign(np.diff(k_branch))) != 0)[0] + 1
+k_fold_off, k_fold_on = sorted(k_branch[turn])
+
 fig, ax = plt.subplots(figsize=(4.2, 3.2))
+in_range = (k_branch > k_values[0]) & (k_branch < k_values[-1])
+for mask, style in [(stable, "-"), (~stable, "--")]:
+    ax.semilogx(np.where(mask & in_range, k_branch, np.nan), S_branch, style, color="0.4", lw=1)
 ax.semilogx(k_values, S_up, "o", ms=4, label="increasing")
 ax.semilogx(k_values, S_down, "x", ms=5, label="decreasing")
-ax.axvspan(k_off, k_on, color="#D39B1E", alpha=0.15, lw=0)
+ax.axvspan(k_fold_off, k_fold_on, color="#D39B1E", alpha=0.15, lw=0)
 ax.set_xlabel("receptor activity, kact (min⁻¹)")
 ax.set_ylabel("steady-state STAT (µM)")
 ax.legend(loc="upper left")
@@ -466,17 +539,29 @@ stable steady states, and which one it occupies depends on its history. This
 dependence on history is called **hysteresis**. The eigenvalues confirm that
 both states are stable, since at `kact` = 0.3 min⁻¹ the largest real part of
 any eigenvalue on either branch is `{python} f"{max_re:.3f}"` min⁻¹. Between
-the two stable states lies a third, unstable, steady state, which a simulation
-cannot reach but which separates the initial conditions that go to one stable
-state from those that go to the other. The thresholds are **saddle-node
-bifurcations**, the points at which the unstable state collides with one of the
-stable states and both disappear [@Tyson2003].
+the two stable states lies a third, unstable, steady state, which separates
+the initial conditions that go to one stable state from those that go to the
+other. A forward simulation does not converge to it, so a continuation scan
+cannot show it. For this two-species model, however, the steady-state
+equations can be solved exactly, and the solution traces all three branches
+in @fig-hysteresis a. The thresholds are **saddle-node bifurcations**, the
+points at which the unstable state collides with one of the stable states and
+both disappear [@Tyson2003]. The exact solution places them at
+`{python} f"{k_fold_off:.3f}"` and `{python} f"{k_fold_on:.3f}"` min⁻¹. A
+continuation scan locates them only to within the spacing of its grid, and
+near a bifurcation it converges slowly, since the eigenvalue that governs the
+approach to the steady state passes through zero there. Thresholds from a scan
+should therefore be checked with a finer grid and longer runs, or, when the
+equations allow it, by solving for the steady states directly.
 
 @fig-hysteresis b shows the practical consequence. A cell that sees a
 moderate signal remains in the low state, but a transient strong signal moves
 it to the high state, where it stays after the signal returns to its moderate
-level. The circuit remembers the strong signal, as the oocytes of Xiong and
-Ferrell do. Whether STAT1 autoregulation creates memory of this kind in real
+level. In this deterministic model it stays there for as long as `kact`
+remains in the bistable range, and the circuit thus remembers the strong
+signal, as the oocytes of Xiong and Ferrell do. In a stochastic model,
+fluctuations can return the cell to the low state, although such transitions
+become rare as the numbers of molecules grow. Whether STAT1 autoregulation creates memory of this kind in real
 cells is not established by this model, which is deliberately minimal. The
 model does show what properties such a memory would require: feedback that is
 both strong and cooperative enough, here through a Hill coefficient of 2, to
@@ -520,10 +605,12 @@ produce two stable states over the relevant range of signals.
   adapted response, which grows roughly as the square root of the dose.
 - Normalized sensitivity coefficients identify the parameters that control a
   response. The adapted pSTAT level has sensitivities of about ±1/2 to most
-  parameters, a consequence of the feedback loop.
+  parameters, a consequence of the feedback loop when SOCS occupies most
+  receptors and the promoter is far from saturation.
 - Positive feedback can create two stable states. Continuation scans in both
   directions reveal hysteresis, and a transient signal can switch such a system
-  permanently.
+  to its upper state, where a deterministic model keeps it while the signal
+  stays in the bistable range.
 
 ## Exercises
 

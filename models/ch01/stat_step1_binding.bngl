@@ -1,6 +1,6 @@
 # Cytokine-STAT-SOCS signaling: Step 1: ligand-receptor binding
 # First of six cumulative models; each later file adds one step. Lines marked '# new' are new in that step.
-# Species have no internal structure here; molecule structure is introduced in Module 2.
+# Species have no internal structure here; molecule structure is introduced in Chapter 2.
 # Units are illustrative: concentrations in uM, time in minutes.
 
 begin model

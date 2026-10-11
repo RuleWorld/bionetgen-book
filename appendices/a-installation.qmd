@@ -24,13 +24,15 @@ example a `BNG-results` folder in your project.
 
 ## Python
 
-The book's Python code uses three packages:
+The book's Python code uses two BioNetGen packages and the standard scientific
+packages:
 
-- [bngsim](https://bngsim.readthedocs.io): fast ODE and stochastic simulation
-  of BioNetGen models, run in-process from Python.
+- [bngsim](https://bngsim.readthedocs.io): fast ODE, stochastic, and
+  network-free simulation of BioNetGen models, run in-process from Python.
 - [PyBioNetGen](https://pybionetgen.readthedocs.io): supplies BioNetGen, which
   bngsim uses to turn a `.bngl` file into a reaction network.
-- `numpy`, `pandas`, and `matplotlib` for analysis and plotting.
+- `numpy`, `pandas`, and `matplotlib` for analysis and plotting, and `jupyter`
+  for notebooks.
 
 Install them with
 
@@ -38,14 +40,24 @@ Install them with
 pip install bngsim bionetgen numpy pandas matplotlib jupyter
 ```
 
-or create the environment used to build this book:
+Every model and figure in the book runs through this route. BNG Playground and
+the VS Code extension run most models, but they may not support every feature
+used in later chapters, such as network-free simulation through bngsim. If a
+model fails in one of them, run it from Python.
+
+## The book's models and code
+
+The models are in the book's repository on GitHub. Download it, either as a
+ZIP file from the repository page or with git:
 
 ```bash
-conda env create -f environment.yml
-conda activate bionetgen-book
+git clone https://github.com/RuleWorld/bionetgen-book.git
+cd bionetgen-book
 ```
 
-Check the installation by simulating the first model of @sec-reaction-networks:
+Paths such as `models/ch01/stat_step1_binding.bngl` in the book are relative
+to this folder. Check the installation by running Python from the folder and
+simulating the first model of @sec-reaction-networks:
 
 ```python
 import bngsim
@@ -54,4 +66,41 @@ sim = bngsim.Simulator(model, method="ode")
 model.reset()
 result = sim.run(t_span=(0, 20), n_points=101)
 print(result.observables["LR"][-1])   # about 0.989
+```
+
+The chapters also use a few helper functions, for example to display model
+files and generated networks, from `scripts/bookutils.py`. Each chapter imports
+them in a hidden cell at the start. To run a chapter's code yourself, start
+Python in the repository folder and run
+
+```python
+import sys
+sys.path.insert(0, "scripts")
+from bookutils import *
+```
+
+## Reproducing the book
+
+To reproduce every figure and number, create the environment used to build
+the book, which also installs Quarto:
+
+```bash
+conda env create -f environment.yml
+conda activate bionetgen-book
+quarto render
+```
+
+Stochastic simulations in the book set their random seeds, so they give the
+same results with the same software versions. This version of the book was
+built with the following versions:
+
+```{python}
+#| echo: false
+#| output: asis
+import sys, importlib.metadata as md
+pkgs = ["bngsim", "bionetgen", "numpy", "pandas", "matplotlib"]
+print("| package | version |\n|---|---|")
+print(f"| Python | {sys.version.split()[0]} |")
+for p in pkgs:
+    print(f"| {p} | {md.version(p)} |")
 ```

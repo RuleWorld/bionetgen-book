@@ -1,5 +1,5 @@
 # Cytokine-STAT-SOCS signaling, rule-based version 1 of 6
-# The Module 1 model rewritten with structured molecules and rules.
+# The Chapter 1 model rewritten with structured molecules and rules.
 # Generates exactly the same 12 species and 15 reactions as stat_step6_feedback.bngl.
 # Units are illustrative: concentrations in uM, time in minutes.
 

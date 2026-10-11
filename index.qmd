@@ -25,34 +25,66 @@ The book has three audiences in mind:
 ## How the book is organized
 
 Each chapter introduces one set of ideas and applies them to a running
-example: a cytokine signaling circuit in which STAT transcription factors
-induce their own inhibitor, SOCS. Chapter 1 builds this circuit one reaction
-at a time and shows how reaction networks become differential equations.
-Chapter 2 shows why naming every molecular complex by hand breaks down, and
-how rules that act on structured molecules solve the problem. Later chapters
-add stochastic effects, compartments, network-free simulation, model analysis,
-and fitting models to data. The plan for the full book is in
+example, a cytokine signaling circuit in which STAT transcription factors
+induce their own inhibitor, SOCS. The chapters are grouped into parts.
+
+**Part I. Foundations**
+
+- @sec-reaction-networks: Builds the
+  STAT–SOCS circuit one reaction at a time and shows how a reaction network
+  becomes a set of differential equations.
+- @sec-rules: Shows why naming every complex
+  by hand breaks down, and how rules that act on structured molecules solve
+  the problem.
+- @sec-stochastic: Describes reactions
+  among small numbers of molecules with the chemical master equation and
+  Gillespie's algorithm, and follows the noise from a single SOCS gene
+  through the feedback loop.
+- @sec-rules-guide: Writes rules for binding,
+  enzymatic modification, synthesis and degradation, and aggregation, and
+  checks each one against the reactions BioNetGen generates.
+
+**Part II. Building realistic models**
+
+- @sec-compartments: Places the circuit in a
+  cell with a nucleus and endosomes, and shows how compartment sizes scale the
+  rates of reactions.
+- @sec-network-free: Simulates models whose
+  networks are too large to generate, using receptor aggregation as the
+  example.
+- @sec-analysis: Computes conservation laws, steady
+  states and their stability, dose–response curves, sensitivities, and
+  bistability.
+
+**In preparation.** Energy-based rule-based modeling completes Part II.
+Part III, *Models meet data*, will cover parameter estimation, uncertainty and
+identifiability, building and sharing models, and AI-assisted modeling. Part IV
+will cover advanced topics, including spatial simulation, rare events, and
+visualization, and Part V will present case studies. The plan for the full
+book is in
 [`BOOK_PLAN.md`](https://github.com/RuleWorld/bionetgen-book/blob/main/BOOK_PLAN.md).
 
 Every model in the book is in the
 [`models/`](https://github.com/RuleWorld/bionetgen-book/tree/main/models)
 folder of the book's repository, organized by chapter, and every figure is
-produced by running those models. Each chapter also has lecture slides and
-exercises.
+produced by running those models. Each chapter ends with exercises. Lecture
+slides and printable worksheets are available for Chapters 1 and 2 and are in
+preparation for the others.
 
 ## Tools
 
-You can run every model in this book in three ways:
+You can run the models in this book in three ways:
 
 1. In a web browser, with no installation, using
    [BNG Playground](https://ruleworld.github.io/bngplayground/).
 2. In Visual Studio Code with the BioNetGen extension, which provides
    syntax highlighting, one-click simulation, and plotting.
 3. From Python, using [bngsim](https://bngsim.readthedocs.io) for fast ODE
-   and stochastic simulation. This is how the figures in the book are made, and
-   it is the route to the analysis and fitting covered in later chapters.
+   and stochastic simulation. This is how the figures in the book are made,
+   it runs every model in the book, and it is the route to the analysis and
+   fitting covered in later chapters.
 
-@sec-installation explains how to install the tools.
+@sec-installation explains how to install them.
 
 ## Conventions
 
