@@ -4,6 +4,7 @@ name: bionetgen-book
 channels: [conda-forge]
 dependencies:
   - python=3.12
+  - graphviz       # draws contact maps and rule diagrams
   - pip
   - pip:
       - -r requirements.txt

@@ -82,7 +82,8 @@ from bookutils import *
 ## Reproducing the book
 
 To reproduce every figure and number, create the environment used to build
-the book, which also installs Quarto:
+the book, which also installs Quarto and Graphviz, the program that lays out
+the contact maps and rule diagrams:
 
 ```bash
 conda env create -f environment.yml

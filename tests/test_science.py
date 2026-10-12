@@ -58,6 +58,15 @@ def test_rules_reproduce_network():
     assert np.allclose(a, b, rtol=1e-4, atol=1e-6)
 
 
+def test_contact_maps():
+    """Ch 2: contact maps of versions 1 and 6 have the components and bonds the text describes."""
+    from bookutils import contact_map
+    v1 = contact_map("ch02", "stat_rbm1_rules", stem="test-cmap1")
+    v6 = contact_map("ch02", "stat_rbm6_ser727", stem="test-cmap6")
+    assert (v1["molecules"], v1["components"], v1["bonds"]) == (6, 8, 4), v1
+    assert (v6["molecules"], v6["components"], v6["bonds"]) == (6, 11, 5), v6
+
+
 def test_symmetry_factor():
     """Ch 4: binding of identical molecules generates a reaction with 0.5*kf."""
     _, reactions = generated_network("ch04", "homodimer")

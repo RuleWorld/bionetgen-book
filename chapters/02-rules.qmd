@@ -4,7 +4,7 @@
 #| include: false
 import sys
 sys.path.insert(0, "../scripts")
-from bookutils import show_bngl, show_lines, model_path, rule_count
+from bookutils import show_bngl, show_lines, model_path, rule_count, contact_map, rule_diagram
 import numpy as np
 import matplotlib.pyplot as plt
 import bngsim
@@ -30,6 +30,8 @@ After this chapter you should be able to:
 - represent molecules with components, states, and bonds in BNGL;
 - read and write patterns, and use them to define observables;
 - write reaction rules and predict which reactions a rule generates;
+- read a contact map and a rule diagram, and distinguish what a rule changes
+  from its context;
 - describe how BioNetGen generates a network from rules, and when
   network-free simulation is needed instead.
 :::
@@ -206,6 +208,49 @@ rule applies. A rule can perform five kinds of operation:
 | create a molecule | `G(s!+) -> G(s!+) + mSOCS()` |
 | delete a molecule | `SOCS(r) -> 0` |
 
+### Rule diagrams
+
+A rule can also be drawn. In a **rule diagram**, the reactant patterns are
+drawn as graphs, and each operation the rule performs is a separate node
+with arrows to the parts of the patterns that it changes
+[@Sekar2017Visualization]. Everything else in the diagram is context.
+@fig-rule-diagrams shows the diagrams that BioNetGen generates for `Sbind`
+and for the rule that phosphorylates STAT on the receptor,
+
+```{python}
+#| echo: false
+#| output: asis
+show_lines("ch02", "stat_rbm1_rules", "Sact:", comments=False)
+```
+
+```{python}
+#| echo: false
+#| output: asis
+sbind_diagram = rule_diagram("ch02", "stat_rbm1_rules", "Sbind")
+sact_diagram = rule_diagram("ch02", "stat_rbm1_rules", "Sact")
+print(f"""::: {{#fig-rule-diagrams layout-ncol=2 layout-valign="bottom"}}
+
+![`Sbind`]({sbind_diagram}){{#fig-rule-sbind width=80%}}
+
+![`Sact`]({sact_diagram}){{#fig-rule-sact width=80%}}
+
+Rule diagrams generated from `stat_rbm1_rules.bngl`. Molecules are gray, components white, and internal states yellow. Purple nodes are the operations each rule performs, with arrows to the components or states they change. Gray lines and the + node are context.
+:::""")
+```
+
+Molecules are drawn as gray boxes, their components as white boxes inside
+them, and internal states as yellow boxes inside the components. In `Sbind`
+the operation forms a bond between the docking site `s` of the receptor and
+the site `r` of STAT. The rest is context. The `+` attached to `l` is a bond
+to an unspecified partner, written `l!+` in the rule, and the yellow `0`
+requires unphosphorylated STAT. In `Sact` the operation changes the state of
+`Y` from `0` to `P`, and the gray line is a bond between receptor and STAT
+that must already exist. A component drawn without a line must be free,
+whereas a component that the rule does not mention, such as the site `g` of
+STAT, is not drawn at all, since it does not affect whether the rule
+applies. Reading a rule as a diagram thus separates the question of what a
+rule does from the question of where it applies.
+
 ## The Chapter 1 model as rules
 
 We now rewrite the model of @sec-reaction-networks with structured molecules.
@@ -217,6 +262,24 @@ from these by the rules.
 #| echo: false
 #| output: asis
 show_bngl("ch02", "stat_rbm1_rules", start="begin molecule types", end="end observables")
+```
+
+A **contact map** summarizes the molecule types of a model and the bonds
+that its rules can form (@fig-contact-map). BioNetGen draws one from a model
+with the action `visualize({type=>"contactmap"})`. Each molecule type appears
+once, with its components and their internal states, and each line joins two
+components that some rule can bind. The SOCS mRNA, which has no components,
+appears as a box with no lines. A contact map shows which interactions are
+possible, but not the conditions under which they occur. For example, it
+shows that STAT and SOCS both bind the docking site `s`, but not that they
+bind only receptors that carry ligand. That information is the context of
+the rules.
+
+```{python}
+#| echo: false
+#| output: asis
+cmap1 = contact_map("ch02", "stat_rbm1_rules")
+print(f"""![Contact map of `stat_rbm1_rules.bngl`. Each line joins two components that a rule of the model can bind.]({cmap1["path"]}){{#fig-contact-map width=60%}}""")
 ```
 
 The receptor has a single docking site `s` that STAT and SOCS compete for,
@@ -427,6 +490,25 @@ fortyfold. Writing 663 reactions and the ODEs for 95 species by hand would be
 slow and error-prone. Rules let us write down the mechanism and leave the
 bookkeeping to the software.
 
+```{python}
+#| echo: false
+#| output: asis
+cmap6 = contact_map("ch02", "stat_rbm6_ser727")
+print(f"""![Contact map of `stat_rbm6_ser727.bngl`, the final version of the model.]({cmap6["path"]}){{#fig-contact-map-6 width=65%}}""")
+```
+
+The contact map grows in the same way as the rules. @fig-contact-map-6 shows
+the contact map of version 6, which has
+`{python} cmap6["components"]` components and `{python} cmap6["bonds"]`
+possible bonds, compared with `{python} cmap1["components"]` and
+`{python} cmap1["bonds"]` in version 1 (@fig-contact-map). The new
+components are the SOCS site on the receptor and the dimerization site and
+serine on STAT. The second site of the ligand adds nothing, since a contact
+map draws identical sites once. The loop on the site `d`
+of STAT is the bond between the two STATs of a dimer. The contact map
+remains small enough to read at a glance, while the network it implies does
+not.
+
 ## Mechanistic details change the predictions
 
 Each version embodies a different hypothesis about the mechanism, and the
@@ -531,6 +613,9 @@ simulators, and a later chapter covers them in detail.
   observables that stay correct as a model grows.
 - Rules transform patterns. One rule generates every reaction that fits its
   pattern, and context restricts where it applies.
+- A contact map shows which components of a model can bind, and a rule
+  diagram shows what a rule changes and the context in which it applies.
+  BioNetGen generates both from the model.
 - BioNetGen generates the network from rules for ODE and stochastic
   simulation. Network-free methods simulate models whose networks are too
   large to generate.
@@ -547,6 +632,12 @@ simulators, and a later chapter covers them in detail.
 4. Remove the `r` context from `Sdimer` in `stat_rbm5_stat_dimer.bngl`, so that
    receptor-bound pSTAT can dimerize. What happens when you generate the
    network? Try adding `max_agg=>6` to `generate_network`.
+5. Sketch by hand the rule diagrams for `SOCSbind` in
+   `stat_rbm1_rules.bngl` and in `stat_rbm3_socs_site.bngl`. Then draw them
+   with `rule_diagram` from `scripts/bookutils.py`, or with the action
+   `visualize({type=>"ruleviz_operation"})`. Which parts of the diagrams
+   differ, and what does the difference mean for the competition between
+   STAT and SOCS?
 
 ## Further reading
 
@@ -554,3 +645,5 @@ simulators, and a later chapter covers them in detail.
 applications. @Faeder2009 and @Sekar2012 cover BNGL syntax and modeling
 practice in depth, including many examples of rules for common signaling
 mechanisms. @Sneddon2011 introduces network-free simulation with NFsim.
+@Sekar2017Visualization describes the contact maps and rule diagrams that
+BioNetGen generates, and methods for visualizing larger models.

@@ -27,6 +27,9 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Install Graphviz
+        run: sudo apt-get update && sudo apt-get install -y graphviz
+
       - name: Install Python packages
         run: pip install -r requirements.txt
 

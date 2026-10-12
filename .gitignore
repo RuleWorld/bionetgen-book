@@ -20,3 +20,5 @@
 **/*.quarto_ipynb
 /worksheets/keys/
 /papers
+# Diagrams generated from the models at render time
+/figures/generated/

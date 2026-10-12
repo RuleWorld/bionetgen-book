@@ -233,3 +233,216 @@ def aggregate_sizes(species_file, molecule):
             pattern, count = line.rsplit(None, 1)
             sizes += [pattern.count(f"{molecule}(")] * int(float(count))
     return np.array(sizes)
+
+
+# ---------------------------------------------------------------------------
+# Model diagrams: contact maps and rule diagrams
+#
+# BioNetGen's visualize() action writes these diagrams as GraphML for the yEd
+# editor, without a layout (Sekar, Tapia, and Faeder 2017). The functions
+# below read that GraphML and lay it out with Graphviz, so the diagrams are
+# generated from the model files whenever the book is built. Each molecule is
+# drawn as one node, with a port for each component and internal state, so
+# that bonds and operations attach to the right site.
+
+_NS = {"g": "http://graphml.graphdrawing.org/xmlns", "y": "http://www.yworks.com/xml/graphml"}
+_OP_LABELS = {"AddBond": "add bond", "DeleteBond": "delete bond",
+              "ChangeState": "change state", "AddMol": "add molecule",
+              "DeleteMol": "delete molecule"}
+_MOL_FILL, _COMP_FILL, _STATE_FILL = "#D9DEE5", "#FFFFFF", "#F6D57A"
+_OP_FILL, _OP_LINE, _OP_EDGE = "#B9A3E3", "#7A5FC0", "#5B3FA8"
+GENERATED = ROOT / "figures" / "generated"
+
+
+def bng_visualize(chapter, name, kind):
+    """Run BioNetGen's visualize action and return the GraphML path.
+
+    ``kind`` is "contactmap" or "ruleviz_operation". Output is cached in a
+    temporary folder, as for ``bng_xml``.
+    """
+    import os, shutil, subprocess, sys, tempfile
+    exe = shutil.which("bionetgen") or os.path.join(os.path.dirname(sys.executable), "bionetgen")
+    out = Path(tempfile.gettempdir()) / "bookutils-viz" / chapter
+    out.mkdir(parents=True, exist_ok=True)
+    text = model_path(chapter, name).read_text()
+    model = text[: text.index("end model") + len("end model")]
+    src = out / f"{name}.bngl"
+    src.write_text(model + f'\nvisualize({{type=>"{kind}"}})\n')
+    subprocess.run([exe, "run", "-i", str(src), "-o", str(out)], check=True, capture_output=True)
+    return out / f"{name}_{kind}.graphml"
+
+
+def _graphml_node(node):
+    label = node.find("g:data/*/y:NodeLabel", _NS)
+    if label is None:
+        label = node.find("g:data/*/y:Realizers/*/y:NodeLabel", _NS)
+    fill = node.find("g:data//y:Fill", _NS)
+    sub = node.find("g:graph", _NS)
+    return {"id": node.get("id"), "label": label.text if label is not None else None,
+            "fill": fill.get("color") if fill is not None else None,
+            "children": [_graphml_node(c) for c in sub.findall("g:node", _NS)] if sub is not None else []}
+
+
+def _read_graphml(path):
+    import xml.etree.ElementTree as ET
+    root = ET.parse(path).getroot()
+    nodes = [_graphml_node(n) for n in root.find("g:graph", _NS).findall("g:node", _NS)]
+    edges = []
+    for e in root.iter("{%s}edge" % _NS["g"]):
+        arrows = e.find(".//y:Arrows", _NS)
+        edges.append({"source": e.get("source"), "target": e.get("target"),
+                      "arrow": arrows is not None and arrows.get("target") != "none"})
+    return nodes, edges
+
+
+def _molecule_order(chapter, name):
+    """Components and states of each molecule type, in declaration order."""
+    import re
+    text = model_path(chapter, name).read_text()
+    block = text.split("begin molecule types")[1].split("end molecule types")[0]
+    order = {}
+    for line in block.splitlines():
+        line = line.split("#")[0].strip()
+        m = re.match(r"(\w+)\((.*)\)", line)
+        if m:
+            comps = [c.split("~") for c in m.group(2).split(",") if c]
+            order[m.group(1)] = ([c[0] for c in comps], {c[0]: c[1:] for c in comps})
+        elif line:
+            order[line.rstrip("()")] = ([], {})
+    return order
+
+
+def _is_operation(node):
+    return node["label"] in _OP_LABELS
+
+
+def _molecule_label(mol, order, ports, name):
+    """Graphviz HTML label for a molecule; records the port of each part."""
+    import html
+    comp_order, state_order = order.get(mol["label"], ([], {}))
+    rank = {c: i for i, c in enumerate(comp_order)}
+    comps = sorted((c for c in mol["children"] if not _is_operation(c)),
+                   key=lambda c: rank.get(c["label"], len(rank)))
+    cells = []
+    for i, comp in enumerate(comps):
+        port = f"c{i}"
+        ports[comp["id"]] = f"{name}:{port}"
+        srank = {s: j for j, s in enumerate(state_order.get(comp["label"], []))}
+        states = sorted((s for s in comp["children"] if not _is_operation(s)),
+                        key=lambda s: srank.get(s["label"], len(srank)))
+        label = html.escape(comp["label"])
+        if not states:
+            cells.append(f'<TD PORT="{port}" BGCOLOR="{_COMP_FILL}" BORDER="1" STYLE="rounded">{label}</TD>')
+            continue
+        inner = ""
+        for j, s in enumerate(states):
+            ports[s["id"]] = f"{name}:{port}s{j}"
+            inner += (f'<TD PORT="{port}s{j}" BGCOLOR="{_STATE_FILL}" BORDER="1" STYLE="rounded">'
+                      f'<FONT POINT-SIZE="10">{html.escape(s["label"])}</FONT></TD>')
+        cells.append(f'<TD PORT="{port}" BGCOLOR="{_COMP_FILL}" BORDER="1" STYLE="rounded">'
+                     f'<TABLE BORDER="0" CELLSPACING="2" CELLPADDING="1">'
+                     f'<TR><TD COLSPAN="{len(states)}">{label}</TD></TR><TR>{inner}</TR></TABLE></TD>')
+    ports[mol["id"]] = name
+    head = f'<TR><TD COLSPAN="{max(len(cells), 1)}"><B>{html.escape(mol["label"])}</B></TD></TR>'
+    body = f"<TR>{''.join(cells)}</TR>" if cells else ""
+    return (f'<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="3" CELLPADDING="3" '
+            f'STYLE="rounded" BGCOLOR="{_MOL_FILL}">{head}{body}</TABLE>>')
+
+
+def _dot_lines(rankdir):
+    return ["graph G {",
+            f'  graph [rankdir={rankdir}, fontname="Helvetica", nodesep=0.35, ranksep=0.5, '
+            f'overlap=false, splines=true, sep="+12", start=1, bgcolor="transparent"];',
+            '  node [shape=plain, fontname="Helvetica", fontsize=12];',
+            "  edge [penwidth=1.3];"]
+
+
+def _render(dot_source, stem, engine):
+    """Write figures/generated/<stem>.svg and .pdf; return the path for Markdown."""
+    import shutil, subprocess
+    exe = shutil.which(engine)
+    if exe is None:
+        raise RuntimeError(f"Graphviz ({engine}) is required to draw model diagrams")
+    GENERATED.mkdir(parents=True, exist_ok=True)
+    for fmt in ("svg", "pdf"):
+        subprocess.run([exe, f"-T{fmt}", "-o", str(GENERATED / f"{stem}.{fmt}")],
+                       input=dot_source, text=True, check=True, capture_output=True)
+    return f"../figures/generated/{stem}"
+
+
+def contact_map(chapter, name, stem=None):
+    """Draw the contact map of a model.
+
+    Returns the image path (without extension, so that the HTML and PDF
+    builds pick SVG and PDF) and counts of molecule types, components, and
+    possible bonds.
+    """
+    nodes, edges = _read_graphml(bng_visualize(chapter, name, "contactmap"))
+    order = _molecule_order(chapter, name)
+    rank = {m: i for i, m in enumerate(order)}
+    ports, lines = {}, _dot_lines("LR")
+    for i, mol in enumerate(sorted(nodes, key=lambda m: rank.get(m["label"], len(rank)))):
+        lines.append(f"  m{i} [label={_molecule_label(mol, order, ports, f'm{i}')}];")
+    for e in edges:
+        lines.append(f'  {ports[e["source"]]} -- {ports[e["target"]]} [color="#333333", len=0.3];')
+    lines.append("}")
+    path = _render("\n".join(lines), stem or f"{chapter}-{name}-contactmap", "neato")
+    n_components = sum(len(m["children"]) for m in nodes)
+    return {"path": path, "molecules": len(nodes), "components": n_components, "bonds": len(edges)}
+
+
+def rule_diagram(chapter, name, rule, stem=None):
+    """Draw one rule as a compact rule diagram; return the image path.
+
+    Molecules, components, and states in the rule's reactant patterns are
+    drawn as in the contact map. Gray lines are bonds required as context,
+    a "+" marks a bond to an unspecified partner, and purple nodes are the
+    operations the rule performs, with arrows to the parts they change.
+    """
+    nodes, edges = _read_graphml(bng_visualize(chapter, name, "ruleviz_operation"))
+    order = _molecule_order(chapter, name)
+    rnode = next(n for n in nodes if n["label"] == rule)
+    ports, lines, ops = {}, _dot_lines("TB"), []
+
+    def collect(n):
+        for c in n["children"]:
+            if _is_operation(c):
+                ops.append(c)
+            collect(c)
+    collect(rnode)
+    mols, wildcards = [], []
+    for i, child in enumerate(rnode["children"]):
+        if _is_operation(child):
+            continue
+        node = f"m{i}"
+        if child["label"] == "+":
+            ports[child["id"]] = node
+            wildcards.append(node)
+            lines.append(f'  {node} [shape=circle, label="+", width=0.25, fixedsize=true, fontsize=11, '
+                         f'style=filled, fillcolor="#EEEEEE", color="#999999"];')
+        else:
+            mols.append(node)
+            lines.append(f"  {node} [label={_molecule_label(child, order, ports, node)}];")
+    for j, op in enumerate(ops):
+        ports[op["id"]] = f"op{j}"
+        lines.append(f'  op{j} [shape=box, style="rounded,filled", fillcolor="{_OP_FILL}", '
+                     f'color="{_OP_LINE}", fontsize=11, label="{_OP_LABELS[op["label"]]}"];')
+    # One row in pattern order, with each "+" just before the molecule it is attached to.
+    owner = {}
+    for e in edges:
+        for a, b in ((e["source"], e["target"]), (e["target"], e["source"])):
+            if ports.get(a) in wildcards and ":" in ports.get(b, ""):
+                owner[ports[a]] = ports[b].split(":")[0]
+    row = []
+    for m in mols:
+        row += [w for w, o in owner.items() if o == m] + [m]
+    row += [w for w in wildcards if w not in row]
+    lines.append("  {rank=same; " + "; ".join(row) + ";}")
+    lines += [f"  {a} -- {b} [style=invis];" for a, b in zip(row, row[1:])]
+    for e in edges:
+        if e["source"] in ports and e["target"] in ports:
+            s, t = ports[e["source"]], ports[e["target"]]
+            style = f'dir=forward, color="{_OP_EDGE}", arrowsize=0.7' if e["arrow"] else 'color="#555555"'
+            lines.append(f"  {s} -- {t} [{style}];")
+    lines.append("}")
+    return _render("\n".join(lines), stem or f"{chapter}-{name}-{rule}", "dot")
