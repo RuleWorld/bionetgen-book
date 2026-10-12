@@ -105,6 +105,73 @@ micromolar (µM) and time is in minutes. The parameter values in the running
 example are illustrative, chosen to show the behavior clearly rather than
 fitted to a particular cell type.
 
+## Acknowledgments
+
+BioNetGen began in the Cell Signaling Team at Los Alamos National
+Laboratory, which Byron Goldstein founded. The team included his late wife,
+Carla Wofsy, together with Tony Redondo, Bill Hlavacek, Michael Blinov, and
+me. The problem that led to BioNetGen, the combinatorial complexity of the
+complexes that form in receptor signaling, came out of that team's work
+[@Hlavacek2003], and the first version of the software was written there
+[@Blinov2004].
+
+I thank Byron and the rest of the Cell Signaling Team at that time, Tony,
+Carla, and Bill, for inviting me to join them in their odyssey to map and
+model the world of biological complexes.
+
+Many people have contributed to BioNetGen and the tools built around it
+since then. Development moved to the Department of Computational and Systems
+Biology at the University of Pittsburgh, where Leonard Harris, Justin Hogg,
+José-Juan Tapia, John Sekar, Sanjana Gupta, Ilya Korsunsky, Arshi Arora,
+Dipak Barua, and Robert Sheehan contributed to BioNetGen 2 [@Harris2016].
+Leonard Harris and Justin Hogg developed compartmental BNGL [@Harris2009],
+John Sekar and Justin Hogg developed energy-based modeling [@Sekar2016], and
+John Sekar and José-Juan Tapia developed the automated visualization of
+rule-based models used in @sec-rules [@Sekar2017Visualization]. José-Juan
+Tapia also wrote Atomizer, which converts reaction-network models into
+rule-based models. Michael Sneddon and Thierry Emonet developed NFsim
+[@Sneddon2011]. Arvind Rasi Subramaniam, an investigator at the Fred
+Hutchinson Cancer Center in Seattle who pioneered the use of rule-based
+modeling to describe translation, also contributed to NFsim. Wen Xu, Adam
+Smith, and Yao Sun, with G. Elisabeta Marai, built RuleBender, a graphical
+interface for BioNetGen [@Xu2011], to which Robert Clark also contributed.
+Ali Sinan Saglam and Alex DiBiasi created PyBioNetGen and the BioNetGen
+extension for Visual Studio Code, Caleb Armstrong and Achyudhan Kutuva
+contributed to PyBioNetGen, and Achyudhan Kutuva developed BNG Playground.
+Nika Zaslavsky, an undergraduate at Carnegie Mellon University who worked
+with our group in 2022 and 2023, played a substantial role in developing the
+Visual Studio Code extension. José-Juan Tapia, Ali Sinan Saglam, Jacob
+Czech, Adam Husar, and their collaborators in the MCell project brought
+BioNetGen models into spatial simulation [@Husar2024].
+
+At Los Alamos and at Northern Arizona University, Bill Hlavacek, Richard
+Posner, and their colleagues have extended BioNetGen with tools for
+simulation and parameter estimation. Jin Yang, Michael Monine, Joshua
+Colvin, and Ryan Gutenkunst developed network-free simulation methods and
+RuleMonkey [@Yang2008; @Colvin2010]; Brandon Thomas, Lily Chylek, and Joshua
+Colvin developed BioNetFit [@Thomas2016]; Eshan Mitra and Ryan Suderman
+developed PyBioNetFit [@Mitra2019]; and Yen Ting Lin and Song Feng developed
+the partial scaling algorithm [@Lin2019]. Bill Hlavacek also wrote bngsim,
+which produced every simulation in this book. The commit histories of the
+[RuleWorld](https://github.com/RuleWorld) repositories record many further
+contributions. Alan Perelson, Walter Fontana, and Michael Hucka did not
+contribute directly to BioNetGen, but they encouraged its development in a
+variety of ways, some intentional and some not.
+
+Development of BioNetGen has been supported by the National Institutes of
+Health, through the National Center for Multiscale Modeling of Biological
+Systems (MMBioS, P41GM103712), which ended in 2022, and grants GM076570,
+GM085273, AI35997, and
+CA109552; by the National Science Foundation (grant 0829788); by the
+Arizona Biomedical Research Commission; and by the Department of
+Computational Biology at the University of Pittsburgh School of Medicine.
+Work at Los Alamos National Laboratory was performed under Department of
+Energy contract DE-AC52-06NA25396.
+
+Finally, I thank the students of all ages and career stages who have taken
+the time to learn BioNetGen and to develop models with it. Their enthusiasm
+has been the main encouragement for me to assemble this book.
+
 ## License
 
 The text and figures are licensed under
