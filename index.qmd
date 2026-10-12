@@ -120,33 +120,32 @@ Carla, and Bill, for inviting me to join them in their odyssey to map and
 model the world of biological complexes.
 
 Many people have contributed to BioNetGen and the tools built around it
-since then. Development moved to my group in the Department of
-Computational and Systems Biology at the University of Pittsburgh, where
-Leonard Harris, Justin Hogg, José-Juan Tapia, John Sekar, Sanjana Gupta,
-Ilya Korsunsky, Arshi Arora, Dipak Barua, and Robert Sheehan contributed to
-BioNetGen 2 [@Harris2016]. Leonard Harris and Justin Hogg led the
-development of compartmental BNGL [@Harris2009]. John Sekar and Justin Hogg
-led the development of energy-based modeling [@Sekar2016], and John Sekar
-and José-Juan Tapia led the development of the automated visualization of
+since then. Development moved to my group in the Department of Computational
+and Systems Biology at the University of Pittsburgh, where Leonard Harris,
+Justin Hogg, José-Juan Tapia, John Sekar, Sanjana Gupta, Ilya Korsunsky,
+Arshi Arora, Dipak Barua, and Robert Sheehan contributed to BioNetGen 2
+[@Harris2016]. Leonard Harris and Justin Hogg led the development of
+compartmental BNGL [@Harris2009]. John Sekar and Justin Hogg led the
+development of energy-based modeling [@Sekar2016], and John Sekar and
+José-Juan Tapia led the development of the automated visualization of
 rule-based models used in @sec-rules [@Sekar2017Visualization]. José-Juan
 Tapia also led the development of Atomizer, which converts reaction-network
 models into rule-based models. Michael Sneddon led the development of NFsim,
 in a collaboration with Thierry Emonet [@Sneddon2011]. Arvind Rasi
-Subramaniam, now an investigator at the Fred Hutchinson Cancer Center in
+Subramaniam, an investigator at the Fred Hutchinson Cancer Center in
 Seattle, pioneered the use of rule-based models to describe translation and
 also contributed to NFsim. Wen Xu and Adam Smith led the development of
-RuleBender, a graphical interface for BioNetGen, in a collaboration with
-G. Elisabeta Marai [@Xu2011], and Yao Sun and Robert Clark also contributed
-to it. Ali Sinan Saglam created PyBioNetGen and the BioNetGen extension for
+RuleBender, a graphical interface for BioNetGen, in a collaboration with G.
+Elisabeta Marai [@Xu2011], and Yao Sun and Robert Clark also contributed to
+it. Ali Sinan Saglam created PyBioNetGen and the BioNetGen extension for
 Visual Studio Code, with contributions from Alex DiBiasi, Nika Zaslavsky,
-Caleb Armstrong, and Achyudhan Kutuva. Nika Zaslavsky, a Carnegie Mellon
-undergraduate who worked with our group in 2022 and 2023, played a
-substantial role in developing the extension. Achyudhan Kutuva developed BNG
+Caleb Armstrong, and Achyudhan Kutuva. Achyudhan Kutuva developed BNG
 Playground. Adam Husar led the development of MCell4, which integrates
 particle-based stochastic simulation with rule-based modeling [@Husar2024].
-MCell4 was developed as part of my longtime collaboration with Tom Bartol
-and Terry Sejnowski at the Salk Institute, and it built on earlier work by
-José-Juan Tapia, Ali Sinan Saglam, and Jacob Czech.
+Integration of rule-based modeling into MCell4 was developed as part of my
+longtime collaboration with Tom Bartol and Terry Sejnowski at the Salk
+Institute, and it built on earlier work by José-Juan Tapia, Ali Sinan
+Saglam, and Jacob Czech.
 
 At Los Alamos and at Northern Arizona University, Bill Hlavacek, Richard
 Posner, and their colleagues have extended BioNetGen with tools for
