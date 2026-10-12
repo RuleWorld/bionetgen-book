@@ -26,3 +26,8 @@
 /papers
 # Diagrams generated from the models at render time
 /figures/generated/
+# Intermediate pages Quarto can leave beside the sources when one file is rendered
+/chapters/*.html
+/appendices/*.html
+/references.html
+/index.html
