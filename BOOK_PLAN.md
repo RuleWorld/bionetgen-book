@@ -361,15 +361,14 @@ because the book repository will be public.
 ## Repository
 
 **This repository, `RuleWorld/bionetgen-book`**, holds the book, models,
-notebooks, and worksheets. The MSCBIO course repository
+and notebooks. The MSCBIO course repository
 (`jrfaeder/RBM_Intro_BioNetGen`) remains the course page, holds the course
-slides, and links to the book.
+slides and worksheets with their private keys, and links to the book.
 
 ```
 book/            Quarto chapters (.qmd) and _quarto.yml
 models/          BNGL models, organized by chapter
 notebooks/       executable notebooks used by chapters and exercises
-worksheets/      printable worksheets (keys live in a private repo)
 references.bib   bibliography
 tests/           model and notebook checks run in CI
 ```

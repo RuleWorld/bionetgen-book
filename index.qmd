@@ -69,10 +69,9 @@ book is in
 Every model in the book is in the
 [`models/`](https://github.com/RuleWorld/bionetgen-book/tree/main/models)
 folder of the book's repository, organized by chapter, and every figure is
-produced by running those models. Each chapter ends with exercises, and a
-printable worksheet is available for Chapter 1. Lecture slides for a course
-based on Chapters 1 and 2 are in the
-[course repository](https://github.com/jrfaeder/RBM_Intro_BioNetGen).
+produced by running those models. Each chapter ends with exercises. Lecture
+slides and a printable worksheet for a course based on Chapters 1 and 2 are in
+the [course repository](https://github.com/jrfaeder/RBM_Intro_BioNetGen).
 
 ## Tools
 

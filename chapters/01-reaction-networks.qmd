@@ -568,8 +568,8 @@ of @sec-stochastic.
 
 ## Exercises
 
-These exercises are also available as a printable worksheet in the book's
-repository.
+These exercises are also available as a printable worksheet in the
+[course repository](https://github.com/jrfaeder/RBM_Intro_BioNetGen).
 
 1. **Binding equilibrium.** Using `stat_step1_binding.bngl`, compute
    $[\mathrm{LR}]_\mathrm{eq}$ from @eq-lr-eq for $L_0$ = 0.1, 1, and 10 µM, and
