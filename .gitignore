@@ -1,6 +1,11 @@
 /_book/
 /.quarto/
-/_freeze/
+# Only Chapter 6 is frozen (see its front matter); commit its stored results.
+/_freeze/*
+!/_freeze/site_libs/
+!/_freeze/chapters/
+/_freeze/chapters/*
+!/_freeze/chapters/06-network-free/
 *_files/
 **/__pycache__/
 .ipynb_checkpoints/

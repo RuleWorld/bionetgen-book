@@ -1,3 +1,13 @@
+---
+# Chapter 6 runs long network-free simulations (about ten minutes), so its
+# results are frozen: a project render reuses the stored results in
+# _freeze/chapters/06-network-free/. Rendering this file by itself, as in
+# `quarto render chapters/06-network-free.qmd`, re-executes it; do that and
+# commit _freeze/ after changing the chapter's models or code.
+execute:
+  freeze: auto
+---
+
 # Network-free simulation {#sec-network-free}
 
 ```{python}
