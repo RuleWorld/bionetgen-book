@@ -69,9 +69,10 @@ book is in
 Every model in the book is in the
 [`models/`](https://github.com/RuleWorld/bionetgen-book/tree/main/models)
 folder of the book's repository, organized by chapter, and every figure is
-produced by running those models. Each chapter ends with exercises. Lecture
-slides and printable worksheets are available for Chapters 1 and 2 and are in
-preparation for the others.
+produced by running those models. Each chapter ends with exercises, and a
+printable worksheet is available for Chapter 1. Lecture slides for a course
+based on Chapters 1 and 2 are in the
+[course repository](https://github.com/jrfaeder/RBM_Intro_BioNetGen).
 
 ## Tools
 
@@ -120,29 +121,33 @@ Carla, and Bill, for inviting me to join them in their odyssey to map and
 model the world of biological complexes.
 
 Many people have contributed to BioNetGen and the tools built around it
-since then. Development moved to the Department of Computational and Systems
-Biology at the University of Pittsburgh, where Leonard Harris, Justin Hogg,
-José-Juan Tapia, John Sekar, Sanjana Gupta, Ilya Korsunsky, Arshi Arora,
-Dipak Barua, and Robert Sheehan contributed to BioNetGen 2 [@Harris2016].
-Leonard Harris and Justin Hogg developed compartmental BNGL [@Harris2009],
-John Sekar and Justin Hogg developed energy-based modeling [@Sekar2016], and
-John Sekar and José-Juan Tapia developed the automated visualization of
+since then. Development moved to my group in the Department of
+Computational and Systems Biology at the University of Pittsburgh, where
+Leonard Harris, Justin Hogg, José-Juan Tapia, John Sekar, Sanjana Gupta,
+Ilya Korsunsky, Arshi Arora, Dipak Barua, and Robert Sheehan contributed to
+BioNetGen 2 [@Harris2016]. Leonard Harris and Justin Hogg led the
+development of compartmental BNGL [@Harris2009]. John Sekar and Justin Hogg
+led the development of energy-based modeling [@Sekar2016], and John Sekar
+and José-Juan Tapia led the development of the automated visualization of
 rule-based models used in @sec-rules [@Sekar2017Visualization]. José-Juan
-Tapia also wrote Atomizer, which converts reaction-network models into
-rule-based models. Michael Sneddon and Thierry Emonet developed NFsim
-[@Sneddon2011]. Arvind Rasi Subramaniam, an investigator at the Fred
-Hutchinson Cancer Center in Seattle who pioneered the use of rule-based
-modeling to describe translation, also contributed to NFsim. Wen Xu, Adam
-Smith, and Yao Sun, with G. Elisabeta Marai, built RuleBender, a graphical
-interface for BioNetGen [@Xu2011], to which Robert Clark also contributed.
-Ali Sinan Saglam and Alex DiBiasi created PyBioNetGen and the BioNetGen
-extension for Visual Studio Code, Caleb Armstrong and Achyudhan Kutuva
-contributed to PyBioNetGen, and Achyudhan Kutuva developed BNG Playground.
-Nika Zaslavsky, an undergraduate at Carnegie Mellon University who worked
-with our group in 2022 and 2023, played a substantial role in developing the
-Visual Studio Code extension. José-Juan Tapia, Ali Sinan Saglam, Jacob
-Czech, Adam Husar, and their collaborators in the MCell project brought
-BioNetGen models into spatial simulation [@Husar2024].
+Tapia also led the development of Atomizer, which converts reaction-network
+models into rule-based models. Michael Sneddon led the development of NFsim,
+in a collaboration with Thierry Emonet [@Sneddon2011]. Arvind Rasi
+Subramaniam, now an investigator at the Fred Hutchinson Cancer Center in
+Seattle, pioneered the use of rule-based models to describe translation and
+also contributed to NFsim. Wen Xu and Adam Smith led the development of
+RuleBender, a graphical interface for BioNetGen, in a collaboration with
+G. Elisabeta Marai [@Xu2011], and Yao Sun and Robert Clark also contributed
+to it. Ali Sinan Saglam created PyBioNetGen and the BioNetGen extension for
+Visual Studio Code, with contributions from Alex DiBiasi, Nika Zaslavsky,
+Caleb Armstrong, and Achyudhan Kutuva. Nika Zaslavsky, a Carnegie Mellon
+undergraduate who worked with our group in 2022 and 2023, played a
+substantial role in developing the extension. Achyudhan Kutuva developed BNG
+Playground. Adam Husar led the development of MCell4, which integrates
+particle-based stochastic simulation with rule-based modeling [@Husar2024].
+MCell4 was developed as part of my longtime collaboration with Tom Bartol
+and Terry Sejnowski at the Salk Institute, and it built on earlier work by
+José-Juan Tapia, Ali Sinan Saglam, and Jacob Czech.
 
 At Los Alamos and at Northern Arizona University, Bill Hlavacek, Richard
 Posner, and their colleagues have extended BioNetGen with tools for
@@ -156,7 +161,13 @@ which produced every simulation in this book. The commit histories of the
 [RuleWorld](https://github.com/RuleWorld) repositories record many further
 contributions. Alan Perelson, Walter Fontana, and Michael Hucka did not
 contribute directly to BioNetGen, but they encouraged its development in a
-variety of ways, some intentional and some not.
+variety of ways, some intentional and some not. Vincent Danos independently
+envisioned rule-based modeling as a solution to the problem of
+combinatorial complexity, and his work inspired, directly and indirectly,
+many of the subsequent developments in BioNetGen. He and his
+collaborators in developing the Kappa language, including Jean Krivine and
+Jérôme Feret, made major contributions to the theory and applications of
+rule-based modeling [@Danos2007].
 
 Development of BioNetGen has been supported by the National Institutes of
 Health, through the National Center for Multiscale Modeling of Biological
