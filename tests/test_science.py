@@ -67,6 +67,14 @@ def test_contact_maps():
     assert (v6["molecules"], v6["components"], v6["bonds"]) == (6, 11, 5), v6
 
 
+def test_chapter2_species_figures():
+    """Ch 2: the complexes drawn in Figs. 2.3 and 2.7 are species of their models."""
+    lrsp = "L(r!1).R(l!1,s!2).S(Y~P,g,r!2)"
+    dimer = "L(r!1,r!2).R(l!1,s!3,socs).R(l!2,s!4,socs).S(Y~0,g,r!3).S(Y~0,g,r!4)"
+    assert lrsp in load("ch02", "stat_rbm1_rules").species_names
+    assert dimer in load("ch02", "stat_rbm4_receptor_dimer").species_names
+
+
 def test_symmetry_factor():
     """Ch 4: binding of identical molecules generates a reaction with 0.5*kf."""
     _, reactions = generated_network("ch04", "homodimer")

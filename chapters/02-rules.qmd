@@ -4,7 +4,8 @@
 #| include: false
 import sys
 sys.path.insert(0, "../scripts")
-from bookutils import show_bngl, show_lines, model_path, rule_count, contact_map, rule_diagram
+from bookutils import (show_bngl, show_lines, model_path, rule_count, contact_map,
+                       rule_diagram, molecule_type_diagram, species_diagram)
 import numpy as np
 import matplotlib.pyplot as plt
 import bngsim
@@ -91,7 +92,12 @@ DNA (@fig-stat-molecule). A component can have both a state and a bond. A
 molecule with no components, such as `mSOCS()`, is just a species name, as
 in @sec-reaction-networks.
 
-![The STAT molecule type S(r,Y~0~P,g).](../figures/stat-molecule){#fig-stat-molecule width=55%}
+```{python}
+#| echo: false
+#| output: asis
+stat_type = molecule_type_diagram("ch02", "stat_rbm1_rules", "S")
+print(f"![The STAT molecule type `S(r,Y~0~P,g)`, drawn from the model file. The molecule is gray, its components white, and the allowed states of `Y` yellow.]({stat_type}){{#fig-stat-molecule width=40%}}")
+```
 
 ## Complexes are graphs
 
@@ -109,7 +115,12 @@ the receptor's `l` says those two components are bound to each other. Bond
 labels only need to be unique within a species. A component with no `!`, like
 `g` here, is **free**.
 
-![The complex L(r!1).R(l!1,s!2).S(r!2,Y~P,g). Molecules are nodes, components are attached to them, and bonds are edges between components.](../figures/lrsp-complex){#fig-lrsp width=28%}
+```{python}
+#| echo: false
+#| output: asis
+lrsp = species_diagram("L(r!1).R(l!1,s!2).S(Y~P,g,r!2)", "ch02-lrsp", "ch02", "stat_rbm1_rules")
+print(f"![The complex `L(r!1).R(l!1,s!2).S(r!2,Y~P,g)`. Each molecule contains its components, the yellow box gives the state of `Y`, and lines are bonds between components.]({lrsp}){{#fig-lrsp width=36%}}")
+```
 
 A species is therefore a **graph** (@fig-lrsp). Many strings describe the
 same graph: molecules can be listed in any order and bonds numbered in any
@@ -402,7 +413,13 @@ dimer for activation (@fig-dimer):
 show_lines("ch02", "stat_rbm4_receptor_dimer", "L(r,r)  ", "LRbind:", "Crosslink:", "Sact:")
 ```
 
-![A cytokine bridging two receptor chains, each carrying a STAT.](../figures/receptor-dimer){#fig-dimer width=24%}
+```{python}
+#| echo: false
+#| output: asis
+dimer = species_diagram("L(r!1,r!2).R(l!1,s!3,socs).R(l!2,s!4,socs).S(Y~0,g,r!3).S(Y~0,g,r!4)",
+                        "ch02-receptor-dimer", "ch02", "stat_rbm4_receptor_dimer")
+print(f"![A cytokine bridging two receptor chains, each carrying an unphosphorylated STAT, one of the species generated from `stat_rbm4_receptor_dimer.bngl`.]({dimer}){{#fig-dimer width=45%}}")
+```
 
 BioNetGen accounts automatically for the two identical ligand sites. A free
 ligand can bind a receptor through either site, so the generated reaction has

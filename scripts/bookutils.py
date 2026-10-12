@@ -446,3 +446,78 @@ def rule_diagram(chapter, name, rule, stem=None):
             lines.append(f"  {s} -- {t} [{style}];")
     lines.append("}")
     return _render("\n".join(lines), stem or f"{chapter}-{name}-{rule}", "dot")
+
+
+def _parse_species(text):
+    """Parse a BNGL species or molecule-type string into molecules.
+
+    Returns a list of (name, [(component, [states], bond)]) where bond is a
+    bond label or None. A molecule type lists several states per component.
+    """
+    import re
+    molecules = []
+    for mol in text.strip().split("."):
+        m = re.match(r"\s*(\w+)(?:\((.*)\))?\s*$", mol)
+        comps = []
+        for c in filter(None, (m.group(2) or "").split(",")):
+            cm = re.match(r"(\w+)((?:~\w+)*)(?:!(\w+|\+|\?))?$", c.strip())
+            states = [s for s in cm.group(2).split("~") if s]
+            comps.append((cm.group(1), states, cm.group(3)))
+        molecules.append((m.group(1), comps))
+    return molecules
+
+
+def _table_label(name, comps, order=None):
+    """HTML label for a parsed molecule, in the contact-map style."""
+    import html
+    if order and name in order:
+        rank = {c: i for i, c in enumerate(order[name][0])}
+        comps = sorted(comps, key=lambda c: rank.get(c[0], len(rank)))
+    cells = []
+    for i, (comp, states, _) in enumerate(comps):
+        label = html.escape(comp)
+        if not states:
+            cells.append(f'<TD PORT="c{i}" BGCOLOR="{_COMP_FILL}" BORDER="1" STYLE="rounded">{label}</TD>')
+            continue
+        inner = "".join(f'<TD BGCOLOR="{_STATE_FILL}" BORDER="1" STYLE="rounded">'
+                        f'<FONT POINT-SIZE="10">{html.escape(s)}</FONT></TD>' for s in states)
+        cells.append(f'<TD PORT="c{i}" BGCOLOR="{_COMP_FILL}" BORDER="1" STYLE="rounded">'
+                     f'<TABLE BORDER="0" CELLSPACING="2" CELLPADDING="1">'
+                     f'<TR><TD COLSPAN="{len(states)}">{label}</TD></TR><TR>{inner}</TR></TABLE></TD>')
+    head = f'<TR><TD COLSPAN="{max(len(cells), 1)}"><B>{html.escape(name)}</B></TD></TR>'
+    body = f"<TR>{''.join(cells)}</TR>" if cells else ""
+    return comps, (f'<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="3" CELLPADDING="3" '
+                   f'STYLE="rounded" BGCOLOR="{_MOL_FILL}">{head}{body}</TABLE>>')
+
+
+def molecule_type_diagram(chapter, name, molecule, stem=None):
+    """Draw a molecule type, with all its allowed states, from a model file."""
+    order = _molecule_order(chapter, name)
+    comps, states = order[molecule]
+    _, label = _table_label(molecule, [(c, states[c], None) for c in comps])
+    lines = _dot_lines("TB") + [f"  m0 [label={label}];", "}"]
+    return _render("\n".join(lines), stem or f"{chapter}-{name}-{molecule}-type", "dot")
+
+
+def species_diagram(species, stem, chapter=None, name=None):
+    """Draw one species: molecules, the state of each component, and bonds.
+
+    ``species`` is a BNGL species string, for example one taken from
+    ``model.species_names``. If a model is given, components are drawn in
+    the order of its molecule types. Molecules are ranked from top to
+    bottom in the order they are first reached through bonds.
+    """
+    order = _molecule_order(chapter, name) if chapter else None
+    lines, ends = _dot_lines("TB"), {}
+    for i, (mol, comps) in enumerate(_parse_species(species)):
+        comps, label = _table_label(mol, comps, order)
+        lines.append(f"  m{i} [label={label}];")
+        for j, (_, _, bond) in enumerate(comps):
+            if bond and bond not in "+?":
+                ends.setdefault(bond, []).append(f"m{i}:c{j}")
+    for bond in sorted(ends, key=lambda b: int(b) if b.isdigit() else b):
+        a, b = sorted(ends[bond], key=lambda e: int(e.split(":")[0][1:]))
+        # bonds leave the bottom of the upper molecule and enter the top of the lower
+        lines.append(f'  {a}:s -- {b}:n [color="#333333"];')
+    lines.append("}")
+    return _render("\n".join(lines), stem, "dot")
