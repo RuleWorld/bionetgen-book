@@ -20,9 +20,9 @@ network supplies a coefficient multiplied by reactant amounts. Its explicit
 source rule supplies the intended source flux in both representations.
 The stochastic trajectories are illustrative, not fitted biological results.
 
-The reference was audited against the clean OneDrive clone at commit
-`9601746f8884ed19ab2acea49fe87fc4660ace46` (2026-09-22), which tracked
-`origin/master`. Executable checks used the book environment's BioNetGen
+The reference was audited against the BioNetGen source at commit
+[`9601746`](https://github.com/RuleWorld/bionetgen/tree/9601746f8884ed19ab2acea49fe87fc4660ace46)
+(2026-09-22). Executable checks used the book environment's BioNetGen
 2.9.3 distribution, bngsim, and NFsim. The regression tests document the
 observed semantics so that a later backend change can prompt a corresponding
 reference update. Older source snapshots and packaged simulators can differ
@@ -41,13 +41,3 @@ exports, expression syntax, filters, and specialized rate laws. The native
 runner in `scripts/bngl_reference.py` writes all outputs to temporary
 directories. A bngsim smoke test alone does not execute every action in a
 BNGL file.
-
-## Integration
-
-`drafts/b-bngl-integration.patch` adds the appendix after installation in
-`_quarto.yml` and marks it drafted in `BOOK_PLAN.md`. Shared book files were
-left for integration after the concurrent corrections. The patch passed
-`git apply --check` at draft completion; recheck it against subsequent edits.
-
-The appendix has its own section identifiers and no unresolved dependencies
-on future chapters. No bibliography entries or third-party figures were added.
