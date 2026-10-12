@@ -1,0 +1,36 @@
+# Specialized native network rate laws, each on distinct reactants.
+begin model
+begin parameters
+  v 2
+  K 1
+  n 2
+  kcat 0.5
+end parameters
+begin molecule types
+  A()
+  B()
+  S()
+  E()
+  P()
+  Q()
+  T()
+end molecule types
+begin seed species
+  A() 3
+  B() 3
+  S() 3
+  E() 1
+end seed species
+begin observables
+  Molecules Ptotal P()
+  Molecules Qtotal Q()
+  Molecules Ttotal T()
+end observables
+begin reaction rules
+  Saturate: A() -> P() Sat(v,K)
+  HillLaw:  B() -> Q() Hill(v,K,n)
+  Enzyme:   S() + E() -> T() + E() MM(kcat,K)
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>1,n_steps=>4})

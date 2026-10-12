@@ -1,0 +1,52 @@
+# Illustrative RAF/inhibitor assembly model, not fitted to experimental data.
+# RAF has a dimerization site d and an inhibitor-binding site i.
+# Inhibitor stabilizes dimers; each occupied protomer supplies one gCouple.
+# Activity proxy = drug-free protomers in dimers; no catalytic cycle is modeled.
+# Concentrations: uM; time: min. Energy parameters: G/RT, with Cref = 1 uM.
+begin model
+begin parameters
+  RAF0       0.1
+  I0         0.1
+  Cref       1
+  KD_dim     1              # intrinsic per-rule scale; macro Kd is 2*KD_dim
+  KD_drug    0.1            # inhibitor Kd for monomer (uM)
+  omega      100            # dimer stabilization per bound inhibitor
+  gDim       ln(KD_dim/Cref)
+  gDrug      ln(KD_drug/Cref)
+  gCouple    -ln(omega)
+  kDim       1
+  kDrug      1
+  EDim       -ln(kDim)
+  EDrug      -ln(kDrug)
+  phi        0
+end parameters
+begin molecule types
+  RAF(d,i)
+  I(r)
+end molecule types
+begin seed species
+  RAF(d,i) RAF0
+  I(r)     I0
+end seed species
+begin observables
+  Molecules RAFtotal RAF()
+  Molecules Itotal   I()
+  Molecules Ifree    I(r)
+  Molecules DimerRAF RAF(d!+)
+  Molecules Active   RAF(d!+,i)
+  Species D00 RAF(d!1,i).RAF(d!1,i)
+  Species D10 RAF(d!1,i!+).RAF(d!1,i)
+  Species D11 RAF(d!1,i!+).RAF(d!1,i!+)
+end observables
+begin energy patterns
+  RAF(d!1).RAF(d!1)     gDim
+  RAF(i!1).I(r!1)       gDrug
+  RAF(d!1,i!+).RAF(d!1) gCouple
+end energy patterns
+begin reaction rules
+  Dimerize: RAF(d) + RAF(d) <-> RAF(d!1).RAF(d!1) Arrhenius(phi,EDim)
+  DrugBind: RAF(i) + I(r) <-> RAF(i!1).I(r!1)     Arrhenius(phi,EDrug)
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>3000,n_steps=>300})

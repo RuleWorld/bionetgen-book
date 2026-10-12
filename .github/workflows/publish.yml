@@ -34,7 +34,10 @@ jobs:
         run: python tests/test_models.py
 
       - name: Test model behavior
-        run: python tests/test_science.py
+        run: |
+          python tests/test_science.py
+          python tests/test_ch08_energy.py
+          python tests/test_bngl_reference.py
 
       - uses: quarto-dev/quarto-actions/setup@v2
         with:

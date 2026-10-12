@@ -1,0 +1,44 @@
+# General syntax examples. Concentrations: uM; time: min.
+begin model
+begin parameters
+  kon     0.1
+  koff    0.2
+  kdimer  0.01
+  kundim  0.1
+  kp      0.3
+  km      0.1
+  K       2
+  R0      3
+  L0      5
+end parameters
+begin molecule types
+  R(l,d,Y~u~p)
+  L(r)
+end molecule types
+begin seed species
+  R(l,d,Y~u)                              R0
+  L(r)                                    L0
+  R(l,d!1,Y~p).R(l,d!1,Y~u)               1
+  R(l!1,d,Y~p).L(r!1)                     1
+end seed species
+begin observables
+  Molecules Rtotal        R()
+  Species   Rcomplexes    R()
+  Molecules Rphos         R(Y~p)
+  Molecules Rbound        R(l!+)
+  Molecules Roverlap      R(l!+) R(Y~p)
+  Species   Rpair         R()==2
+  Molecules Ltotal        L()
+end observables
+begin functions
+  phos_rate() = kp/(1+Rphos/K)
+end functions
+begin reaction rules
+  Bind:    R(l) + L(r) <-> R(l!1).L(r!1) kon,koff
+  Dimer:   R(d) + R(d) <-> R(d!1).R(d!1) kdimer,kundim
+  Phos:    R(Y~u) -> R(Y~p) phos_rate()
+  Dephos:  R(Y~p) -> R(Y~u) km
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>10,n_steps=>20})

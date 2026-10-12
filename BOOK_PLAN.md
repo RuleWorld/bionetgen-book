@@ -2,7 +2,7 @@
 
 *Working draft, October 2026. Everything here is a proposal to react to.*
 
-**Status (2026-10-10):** Part I drafted (Chapters 1–4); Part II partially drafted (Chapters 5–7), with energy-based modeling planned as Chapter 8. Visualization additions to core chapters and an advanced visualization chapter are planned. Chapters 1–2 revised for voice; see STYLE.md.
+**Status (2026-10-11):** Part I drafted (Chapters 1–4); Part II drafted (Chapters 5–8), including energy-based modeling in Chapter 8; Appendix B (BNGL reference) drafted. Chapters 1–7 revised after a critical review (`BOOK_REVIEW.md`). Visualization additions to core chapters and an advanced visualization chapter are planned. Chapters 1–2 revised for voice; see STYLE.md.
 
 ## What we are building
 
@@ -87,7 +87,7 @@ Chapters 1 and 2.
 | 5 | Compartments and transport | cBNGL, volume scaling, membranes, transport | STAT nuclear import and export; receptor internalization | drafted |
 | 6 | Network-free simulation | infinite networks, NFsim and RuleMonkey through bngsim, performance trade-offs | ligand-induced receptor aggregation (TLBR, FcεRI) | drafted |
 | 7 | Analyzing models | steady states, parameter scans, bifurcation, sensitivity, timescales, conservation laws; relating structural diagrams to dynamics | generalize the pulse-shape exercise | drafted; visualization links planned |
-| 8 | Energy-based rule-based modeling | free-energy and kinetic parameters, energy patterns, cooperativity and allostery, detailed balance, energy-driven signaling | cooperative receptor binding; EGFR or RAF example alongside the STAT circuit | partial (OneDrive `Manuscripts/Emodeling_perspective` and `Manuscripts/EnergyModeling`) |
+| 8 | Energy-based rule-based modeling | free-energy and kinetic parameters, energy patterns, cooperativity and allostery, detailed balance, energy-driven signaling | cooperative receptor binding; EGFR or RAF example alongside the STAT circuit | drafted (tested binding and illustrative RAF models; companion notebook) |
 
 ### Chapter 8: Energy-based rule-based modeling
 
@@ -98,19 +98,10 @@ alter interactions at another. Introduce this distinction between
 combinatorial and contextual complexity using the cooperative-binding example
 from Chapter 4, then build an executable energy-based version.
 
-**Source material:** the local OneDrive manuscript
-`Manuscripts/Emodeling_perspective/manuscript.pdf`, *The hidden layer of the
-cell: signaling pathways are neural networks* (Glazer, Faeder, and Gerosa),
-especially Box 1 and its RAF/inhibitor example; and
-`Manuscripts/EnergyModeling/Energy modeling_Physical biology special issue.docx`,
-*Energy-based modeling reveals mechanisms of transient behavior in the EGFR
-pathway*. The latter currently contains a draft abstract with results
-placeholders. Use it to identify an intended EGFR application, not as a
-completed worked result. The perspective's neural-network interpretation can
-provide a later connection to Chapter 12; the energy chapter should stand on
-its biochemical and thermodynamic foundations. The accompanying
-`Garcia_et_al_BMB_Detailed_balance_ATP_paper_2022.pdf` is a source to examine
-when developing the treatment of ATP-driven cycles.
+**Source material:** unpublished manuscripts by the author and collaborators
+on energy-based modeling, to be cited once they are public, and the published
+thermodynamically consistent ATP-production model of Garcia et al. (2023),
+which informs the treatment of ATP-driven cycles.
 
 **Proposed sections and learning goals:**
 
@@ -321,7 +312,7 @@ should appear much earlier:
 ### Appendices
 
 - A. Installing the tools (VS Code extension, PyBioNetGen, bngsim, BNG Playground)
-- B. BNGL language reference
+- B. BNGL language reference (drafted; executable syntax and semantic checks)
 - C. Python interface (bngsim, PyBioNetGen) reference
 - D. **Lab practices**: project layout, Git and GitHub, reproducibility, model
   review checklist. This appendix is the core of the onboarding manual.

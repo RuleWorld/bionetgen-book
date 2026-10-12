@@ -1,0 +1,32 @@
+# A molecule crosses the boundary between adjacent volume compartments.
+begin model
+begin parameters
+  Voutside 10
+  Vinside  1
+  Vmem     0.01
+  kout     0.2
+  kin      0.1
+end parameters
+begin compartments
+  outside 3 Voutside
+  membrane 2 Vmem outside
+  inside 3 Vinside membrane
+end compartments
+begin molecule types
+  A()
+end molecule types
+begin seed species
+  @outside:A() 1
+  @inside:A()  0
+end seed species
+begin observables
+  Molecules Aout A()@outside
+  Molecules Ain  A()@inside
+end observables
+begin reaction rules
+  Import: @outside:A() -> @inside:A() kin
+  Export: @inside:A() -> @outside:A() kout
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>10,n_steps=>20})

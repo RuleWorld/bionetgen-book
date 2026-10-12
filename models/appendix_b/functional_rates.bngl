@@ -1,0 +1,38 @@
+# Contrast a functional rate coefficient with a TotalRate expression.
+begin model
+begin parameters
+  k 2
+  K 1
+  A0 3
+end parameters
+begin molecule types
+  A()
+  B()
+  C()
+  D()
+end molecule types
+begin seed species
+  $A() A0
+  B() 0
+  C() 0
+  D() 0
+end seed species
+begin observables
+  Molecules Atotal A()
+  Molecules Btotal B()
+  Molecules Ctotal C()
+  Molecules Dtotal D()
+end observables
+begin functions
+  rate() = k*Atotal/(K+Atotal)
+end functions
+begin reaction rules
+  Coefficient: A() -> A() + B() rate()
+  TotalFlux:   A() -> A() + C() rate() TotalRate
+  SourceFlux:  0 -> D() rate()
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>1,n_steps=>4,print_functions=>1})
+resetConcentrations()
+simulate({method=>"nf",t_start=>0,t_end=>1000,n_steps=>4,seed=>17,suffix=>"nf"})

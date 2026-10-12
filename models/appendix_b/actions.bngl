@@ -1,0 +1,46 @@
+# Run natively with BioNetGen to exercise actions as well as model syntax.
+begin model
+begin parameters
+  kp 0.2
+  km 0.1
+  A0 10
+end parameters
+begin molecule types
+  A(Y~u~p)
+end molecule types
+begin seed species
+  A(Y~u) A0
+  A(Y~p) 0
+end seed species
+begin observables
+  Molecules Au A(Y~u)
+  Molecules Ap A(Y~p)
+end observables
+begin reaction rules
+  Convert: A(Y~u) <-> A(Y~p) kp,km
+end reaction rules
+end model
+generate_network({overwrite=>1})
+saveConcentrations("start")
+saveParameters("rates")
+simulate({method=>"ode",t_end=>1,n_steps=>4,suffix=>"ode"})
+setParameter("kp","0.4")
+setConcentration("A(Y~u)","6")
+addConcentration("A(Y~p)","1")
+simulate({method=>"ode",t_start=>1,t_end=>2,n_steps=>4,continue=>1,suffix=>"ode"})
+resetConcentrations("start")
+resetParameters("rates")
+simulate({method=>"ode",sample_times=>[0,0.25,1],suffix=>"sample"})
+resetConcentrations("start")
+parameter_scan({parameter=>"kp",par_min=>0.1,par_max=>0.3,n_scan_pts=>3,method=>"ode",t_end=>1,n_steps=>4,suffix=>"scan"})
+resetConcentrations("start")
+resetParameters("rates")
+simulate({method=>"ssa",t_end=>1,n_steps=>4,seed=>17,suffix=>"ssa"})
+resetConcentrations("start")
+simulate({method=>"nf",t_start=>0,t_end=>1,n_steps=>4,seed=>17,suffix=>"nf"})
+writeModel({suffix=>"model"})
+writeNetwork({suffix=>"network"})
+writeXML({suffix=>"xml"})
+writeSBML({suffix=>"sbml"})
+writeMfile({suffix=>"mfile"})
+visualize({type=>"contactmap",suffix=>"contact"})

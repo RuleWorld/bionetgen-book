@@ -1,0 +1,50 @@
+# Two distinct receptor sites bind the same monovalent ligand.
+# Concentrations: uM; time: min. Energy parameters are dimensionless (G/RT).
+# The energy reference for association is Cref = 1 uM; the kinetic reference
+# is 1/min, so Arrhenius rates have numerical units 1/uM/min and 1/min.
+begin model
+begin parameters
+  R0       1
+  L0       1
+  Cref     1                 # concentration reference (uM); keep at 1 here
+  KD_A     0.1               # isolated-site dissociation constant (uM)
+  KD_B     0.1
+  omega    10                # enhancement of affinity when the other site binds
+  gA       ln(KD_A/Cref)
+  gB       ln(KD_B/Cref)
+  gAB      -ln(omega)
+  kA       1                 # kinetic scale (1/min)
+  kB       1
+  EA       -ln(kA)           # log kinetic scale relative to 1/min
+  EB       -ln(kB)
+  phi      0                 # allocation of energy change to forward rate
+end parameters
+begin molecule types
+  R(a,b)
+  L(r)
+end molecule types
+begin seed species
+  R(a,b)  R0
+  L(r)    L0
+end seed species
+begin observables
+  Molecules R00     R(a,b)
+  Molecules R10     R(a!+,b)
+  Molecules R01     R(a,b!+)
+  Molecules R11     R(a!+,b!+)
+  Molecules Rtotal  R()
+  Molecules Lfree   L(r)
+  Molecules Ltotal  L()
+end observables
+begin energy patterns
+  R(a!1).L(r!1)  gA
+  R(b!1).L(r!1)  gB
+  R(a!+,b!+)     gAB
+end energy patterns
+begin reaction rules
+  BindA: R(a) + L(r) <-> R(a!1).L(r!1)  Arrhenius(phi,EA)
+  BindB: R(b) + L(r) <-> R(b!1).L(r!1)  Arrhenius(phi,EB)
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>300,n_steps=>300})

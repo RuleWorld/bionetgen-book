@@ -1,0 +1,51 @@
+# Explicit context-specific rates equivalent to two_site_energy.bngl.
+# Concentrations: uM; time: min. Cref = 1 uM is held fixed in comparisons.
+begin model
+begin parameters
+  R0       1
+  L0       1
+  Cref     1
+  KD_A     0.1
+  KD_B     0.1
+  omega    10
+  gA       ln(KD_A/Cref)
+  gB       ln(KD_B/Cref)
+  gAB      -ln(omega)
+  kA       1
+  kB       1
+  phi      0
+  konA     kA/Cref*exp(-phi*gA)
+  koffA    kA*exp((1-phi)*gA)
+  konB     kB/Cref*exp(-phi*gB)
+  koffB    kB*exp((1-phi)*gB)
+  konAB    kA/Cref*exp(-phi*(gA+gAB))
+  koffAB   kA*exp((1-phi)*(gA+gAB))
+  konBA    kB/Cref*exp(-phi*(gB+gAB))
+  koffBA   kB*exp((1-phi)*(gB+gAB))
+end parameters
+begin molecule types
+  R(a,b)
+  L(r)
+end molecule types
+begin seed species
+  R(a,b)  R0
+  L(r)    L0
+end seed species
+begin observables
+  Molecules R00     R(a,b)
+  Molecules R10     R(a!+,b)
+  Molecules R01     R(a,b!+)
+  Molecules R11     R(a!+,b!+)
+  Molecules Rtotal  R()
+  Molecules Lfree   L(r)
+  Molecules Ltotal  L()
+end observables
+begin reaction rules
+  A_first: R(a,b) + L(r) <-> R(a!1,b).L(r!1)      konA, koffA
+  A_second: R(a,b!+) + L(r) <-> R(a!1,b!+).L(r!1) konAB, koffAB
+  B_first: R(a,b) + L(r) <-> R(a,b!1).L(r!1)      konB, koffB
+  B_second: R(a!+,b) + L(r) <-> R(a!+,b!1).L(r!1) konBA, koffBA
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>300,n_steps=>300})

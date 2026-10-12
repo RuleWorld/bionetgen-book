@@ -55,10 +55,12 @@ induce their own inhibitor, SOCS. The chapters are grouped into parts.
 - @sec-analysis: Computes conservation laws, steady
   states and their stability, dose–response curves, sensitivities, and
   bistability.
+- @sec-energy-modeling: Assigns free energies to molecular structures so
+  that cooperative binding satisfies detailed balance, and distinguishes
+  equilibrium from signaling driven by ATP hydrolysis.
 
-**In preparation.** Energy-based rule-based modeling completes Part II.
-Part III, *Models meet data*, will cover parameter estimation, uncertainty and
-identifiability, building and sharing models, and AI-assisted modeling. Part IV
+**In preparation.** Part III, *Models meet data*, will cover parameter
+estimation, uncertainty and identifiability, building and sharing models, and AI-assisted modeling. Part IV
 will cover advanced topics, including spatial simulation, rare events, and
 visualization, and Part V will present case studies. The plan for the full
 book is in
@@ -84,7 +86,8 @@ You can run the models in this book in three ways:
    it runs every model in the book, and it is the route to the analysis and
    fitting covered in later chapters.
 
-@sec-installation explains how to install them.
+@sec-installation explains how to install them, and @sec-bngl-reference
+summarizes the syntax of BNGL.
 
 ## Conventions
 

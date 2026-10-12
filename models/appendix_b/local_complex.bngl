@@ -1,0 +1,25 @@
+# Whole-complex tag: each matched receptor sees the bound-ligand motif.
+begin model
+begin parameters
+  k 1
+end parameters
+begin molecule types
+  R(l,d,Y~u~p)
+  L(r)
+end molecule types
+begin seed species
+  R(l!1,d!2,Y~u).L(r!1).R(l,d!2,Y~u) 1
+end seed species
+begin observables
+  Molecules Bound R(l!1).L(r!1)
+  Molecules Rp    R(Y~p)
+end observables
+begin functions
+  local_rate(x) = k*(1+Bound(x))
+end functions
+begin reaction rules
+  Phos: %x:R(Y~u) -> %x:R(Y~p) local_rate(x)
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>1,n_steps=>4})

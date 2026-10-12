@@ -1,0 +1,24 @@
+# Both deletion choices act on the same receptor-ligand seed complex.
+begin model
+begin parameters
+  k 1
+end parameters
+begin molecule types
+  R(l)
+  L(r)
+end molecule types
+begin seed species
+  R(l!1).L(r!1) 1
+end seed species
+begin observables
+  Molecules Rtotal R()
+  Molecules Ltotal L()
+  Molecules Lfree  L(r)
+end observables
+begin reaction rules
+  LoseComplex:  R() -> 0 k
+  LoseReceptor: R() -> 0 k DeleteMolecules
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>5,n_steps=>20})

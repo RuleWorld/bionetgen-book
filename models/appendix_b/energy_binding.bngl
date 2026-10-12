@@ -1,0 +1,29 @@
+# Micromolar concentration reference and minute time reference.
+begin model
+begin parameters
+  KD 0.1
+  Cref 1
+  gbind ln(KD/Cref)
+  phi 0.5
+  Ea 0
+end parameters
+begin molecule types
+  R(l)
+  L(r)
+end molecule types
+begin seed species
+  R(l) 1
+  L(r) 1
+end seed species
+begin observables
+  Molecules Bound R(l!+)
+end observables
+begin energy patterns
+  R(l!1).L(r!1) gbind
+end energy patterns
+begin reaction rules
+  Bind: R(l) + L(r) <-> R(l!1).L(r!1) Arrhenius(phi,Ea)
+end reaction rules
+end model
+generate_network({overwrite=>1})
+simulate({method=>"ode",t_end=>10,n_steps=>20})

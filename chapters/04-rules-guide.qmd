@@ -138,7 +138,11 @@ reverse of each rule applies the same context as the forward direction, so
 ligand bound at site `a` can leave only while site `b` is empty. If both sites
 can release their ligand independently, the unbinding reactions must be
 written as separate rules without that context, as we did for STAT
-in @sec-rules.
+in @sec-rules. When the sites can be filled in either order, however, the
+four binding rate constants cannot be chosen independently, since both
+orders lead to the same doubly occupied receptor. @sec-energy-modeling
+derives this constraint and shows how energy patterns satisfy it
+automatically.
 
 ## Enzymatic modification
 
@@ -449,7 +453,8 @@ results alone.
 2. **Cooperativity.** Modify `cooperative.bngl` so that either site can be
    occupied first and ligand can leave either site at any time. How many rules
    do you need? Plot the fraction of receptors with both sites filled as a
-   function of ligand concentration for `kon2` = 0.1, 1, and 10.
+   function of ligand concentration for `kon2` = 0.1, 1, and 10. Do your
+   rate constants satisfy the cycle constraint of @sec-energy-cycle?
 3. **When does Michaelis–Menten fail?** In `enzyme.bngl`, vary `E0` from 0.001
    to 1 µM and measure the time for half of the substrate to be phosphorylated
    by each mechanism. Explain where and why the two begin to disagree.

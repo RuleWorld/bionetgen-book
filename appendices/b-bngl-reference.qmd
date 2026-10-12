@@ -1,0 +1,709 @@
+# BNGL language reference {#sec-bngl-reference}
+
+```{python}
+#| include: false
+import sys
+sys.path.insert(0, "../scripts")
+from bookutils import show_bngl, show_lines, model_path
+from bngl_reference import native_model
+import bngsim
+import numpy as np
+
+syntax = bngsim.Model.from_bngl(model_path("appendix_b", "syntax_demo"))
+syntax.reset()
+initial = bngsim.Simulator(syntax, "ode").run(t_span=(0, 0.01), n_points=2)
+functional = native_model("functional_rates")
+fd = functional["data"]["functional_rates.gdat"]
+nf = functional["data"]["functional_rates_nf.gdat"]
+```
+
+BNGL describes molecular structures, patterns that select those structures,
+and rules that change them. A file also contains actions that generate a
+reaction network, run simulations, or export the model. The tables below
+give the syntax used throughout this book; the accompanying files in
+`models/appendix_b/` are executable examples.
+
+The reference was checked against the
+[BioNetGen source snapshot `9601746`](https://github.com/RuleWorld/bionetgen/tree/9601746f8884ed19ab2acea49fe87fc4660ace46)
+and tested with BioNetGen `{python} functional['version']`. The parser
+accepts some constructs that a particular simulator or exporter may handle
+differently. Those distinctions are identified where they affect the
+meaning of a model, especially in @sec-bngl-functional
+and @sec-bngl-simulators.
+
+## File structure and lexical conventions {#sec-bngl-file}
+
+A model definition is enclosed by `begin model` and `end model`. Within it,
+each block begins with `begin block-name` and ends with the corresponding
+`end block-name`. Actions follow the model, either as individual commands
+or inside `begin actions` and `end actions`. An explicit model wrapper is
+recommended even though the parser also accepts older files without it.
+
+| Block | Contents | Typical dependency |
+|---|---|---|
+| `parameters` | Numeric values and algebraic expressions | Define quantities before using them |
+| `compartments` | Compartment names, dimensions, sizes, and containment | Declare enclosing compartments first |
+| `molecule types` | Molecule names, component names, and allowed states | Define types before species and patterns |
+| `seed species` | Fully specified initial molecular species and amounts | Requires parameters, types, and any compartments |
+| `observables` | Patterns used to count molecules or complexes | Define observables before functions that use them |
+| `functions` | Expressions that can depend on observables or time | Requires the referenced quantities |
+| `energy patterns` | Structural patterns with free-energy contributions | Requires molecular types and energy parameters |
+| `reaction rules` | Reactant patterns, product patterns, and rate laws | Requires the referenced definitions |
+
+Some blocks are optional. For example, a model with mass-action rules
+needs no `functions` block, and a spatially homogeneous model needs no
+`compartments` block. Use the order above to make dependencies visible.
+The `species`, `reactions`, and `groups` blocks also occur in generated
+`.net` files; they describe an enumerated network rather than the compact
+rule definition.
+
+| Construct | Syntax and interpretation |
+|---|---|
+| Comment | `#` begins a comment extending to the end of the line |
+| Continuation | A trailing backslash joins a logical statement to the next line |
+| Identifier | Use a letter or underscore followed by letters, digits, or underscores; names are case-sensitive |
+| Number | Integer, decimal, or scientific notation, such as `1`, `0.1`, or `1e-3` |
+| Rule label | `Bind:` precedes a rule and names it in generated output |
+| String | Quoted text in action arguments, such as `"ode"` or `"R(l)"` |
+| Action options | `{name=>value,...}`; string values are quoted and arrays use square brackets |
+
+Choose distinct names for parameters, observables, and functions since they
+share the expression namespace. Parentheses enclose molecule components,
+function arguments, and action arguments, with different meanings in each
+context. Semicolons are unnecessary in the examples in this book.
+
+The following file has the core blocks and an ODE action:
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "syntax_demo")
+```
+
+## Parameters, expressions, and units {#sec-bngl-expressions}
+
+Each parameter line has the form `name expression`. The expression can
+refer to previously defined parameters. A derived parameter such as
+`KD koff/kon` records an algebraic dependence; observables that change during
+a simulation belong in functions when they control a rate.
+
+| Operation | BNGL syntax |
+|---|---|
+| Arithmetic | `+`, `-`, `*`, `/`, `^` |
+| Grouping | `(expression)` |
+| Comparison | `<`, `<=`, `>`, `>=`, `==`, `!=` |
+| Logical combination | `&&`, `||` |
+| Conditional | `if(condition,expression_if_true,expression_if_false)` |
+| Exponential and logarithms | `exp(x)`, `ln(x)`, `log10(x)`, `log2(x)` |
+| Magnitude and root | `abs(x)`, `sqrt(x)` |
+| Trigonometric functions | `sin`, `cos`, `tan`, `asin`, `acos`, `atan` |
+| Hyperbolic functions | `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh` |
+| Aggregation | `min(...)`, `max(...)`, `sum(...)`, `avg(...)` |
+| Nearest integer | `rint(x)`, implemented as $\lfloor x+1/2\rfloor$ |
+| Mathematical constants | `_pi()`, `_e()` |
+| Simulation time | `time()` in a dynamic expression |
+
+Use `^` for exponentiation and explicit parentheses to clarify compound
+conditions. Internal states such as `Y~p` are labels; they are distinct
+from the numeric quantities used in expressions. Avoid undefined
+operations, including division by zero and logarithms of nonpositive
+values, in all reachable model states.
+
+BNGL does not infer a unit system from parameter names. For an amount
+variable $x$, a unimolecular rate coefficient has units of inverse time,
+a bimolecular coefficient has units of inverse amount per time, and a
+source rate has units of amount per time. Select concentration or molecule
+count units and convert every parameter consistently.
+
+`substanceUnits("Concentration")` and `substanceUnits("Number")` declare an
+amount convention for processing and export. They do not perform an
+automatic conversion of arbitrary seed amounts and kinetic parameters.
+Stochastic simulation requires molecule counts and rates appropriate to
+those counts. Compartment sizes and the amount convention together affect
+compartmental scaling (@sec-bngl-compartments).
+
+## Molecule types and molecular species {#sec-bngl-molecules}
+
+A molecule type declares the components that can occur on a molecule and
+the internal states allowed for each component:
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "syntax_demo", "begin molecule types", "end molecule types")
+```
+
+`R(l,d,Y~u~p)` declares a receptor with components `l`, `d`, and `Y`.
+Component `Y` can have state `u` or `p`; a particular receptor has one of
+those states. A component can carry both a state and a bond, as in
+`R(Y~p!1).K(r!1)` if the declared molecule types allow that structure.
+
+Repeated component names represent equivalent sites. For example,
+`A(b,b,b)` declares interchangeable binding sites on `A`; the declaration
+can compress symmetric interactions but also introduces matching
+multiplicities. Distinct names such as `b1` and `b2` distinguish sites and
+permit site-specific rates.
+
+| Structure | Meaning |
+|---|---|
+| `L(r)` | A ligand whose `r` component is unbound |
+| `R(l,d,Y~u)` | A complete receptor with both binding components free |
+| `R(l!1,d,Y~p).L(r!1)` | A receptor-ligand complex, with the bond endpoints sharing label `1` |
+| `R(l,d!1,Y~p).R(l,d!1,Y~u)` | A dimer containing receptors in different internal states |
+| `A(x!1,y!2).B(a!1).C(a!2)` | A connected complex with distinct labeled bonds |
+
+A dot joins molecules within one species or pattern. Bond labels identify
+the endpoints of an edge within that expression; reusing `!1` in another
+expression does not connect the expressions. Each explicit bond has two
+endpoints. Molecule order and bond numbering can change when BioNetGen
+writes a canonical species string, while the molecular graph remains the
+same.
+
+A seed-species line has the form `complete_species amount`. Specify every
+component and internal state needed to identify the species. A seed species
+must be connected, so separate unbound molecules occupy separate seed
+lines. A zero initial amount is useful when later actions must address
+that species explicitly. Prefixing a seed species with `$`, as in
+`$A() A0`, fixes the amount of that particular species. Complexes containing
+the same molecule type are separate species and acquire their own amounts.
+
+## Patterns and matching {#sec-bngl-patterns}
+
+A **pattern** selects molecular structures by specifying some of their
+properties. Components omitted from a pattern impose no condition on
+their states or bonds. A component that appears without a bond annotation
+is required to be unbound. These two forms therefore select different
+sets of molecules:
+
+| Pattern | Required properties |
+|---|---|
+| `R()` | A receptor in any internal state or binding context |
+| `R(l)` | The `l` component is present and unbound |
+| `R(l!+)` | The `l` component is bound, with the partner unspecified |
+| `R(l!?)` | The `l` component may be bound or unbound |
+| `R(Y~p)` | State `p` at `Y`, with `Y` unbound |
+| `R(Y~p!?)` | State `p` at `Y`, with either bond status |
+| `R(l,Y~p)` | Both named components are unbound and `Y` has state `p` |
+| `R(l!1).L(r!1)` | A receptor bound to a ligand through the specified components |
+
+If `Y` is purely an internal-state component in the model, its unbound
+condition adds no restriction. When a component can also bind a partner,
+include `!?` to select its state independently of binding. Omitting
+`~state` leaves the internal state unspecified; `!?` refers to bonds.
+
+Consider `R(Y~u) -> R(Y~p) kp`. The rule preserves omitted components and
+their partners, so the phosphorylation event can occur in a ligand-bound
+receptor or a dimer. Adding `l` to both sides restricts the rule to
+receptors with a free ligand-binding component. Adding `l!+` restricts it
+to bound receptors. Such unchanged requirements are the rule's context.
+
+A pattern can have several embeddings in a species, for example when a
+dimer contains several receptors in the required state. Those embeddings
+can affect observable weights and reaction rates. The pattern attribute
+`{MatchOnce}` restricts its matching to at most one embedding in a given
+species. For example, `{MatchOnce}R()` requests one match per
+receptor-containing complex. Apply it only when the intended event or
+measurement is defined per complex; restricting a match that identifies
+distinct reactive sites can remove physical events.
+
+## Observables {#sec-bngl-observables}
+
+An observable line has the form `type name pattern`, followed by any
+additional patterns. Patterns may be separated by spaces or commas.
+
+| Type or modifier | Interpretation |
+|---|---|
+| `Molecules` | Sum the pattern embeddings, weighted by the amount of each species |
+| `Species` | Count each matching species instance once per listed pattern, irrespective of that pattern's embedding multiplicity |
+| `Species Pair R()==2` | Select species with exactly two embeddings of `R()` |
+| `Species Cluster R()>2` | Select species with more than two embeddings of `R()` |
+
+`Species` counts the amount of matching complexes. It does not report the
+number of distinct species definitions in the generated network. For a
+single-molecule pattern, `Molecules` counts molecules of that type. For a
+multimolecule motif, it counts motif embeddings, which can include a
+symmetry multiplicity. Quantifiers such as `==2` refer to the number of
+embeddings of the preceding pattern; for `R()` this is the number of
+receptors in a complex.
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "syntax_demo", "begin observables", "end observables")
+```
+
+The seed mixture gives `Rtotal =`
+`{python} f'{initial.observables["Rtotal"][0]:g}'` and `Rcomplexes =`
+`{python} f'{initial.observables["Rcomplexes"][0]:g}'` in the chosen amount
+units. Each dimer contributes its receptors to `Rtotal` and one complex
+to `Rcomplexes`.
+
+Contributions from multiple patterns are added. A molecule matching both
+patterns can be counted twice, and a complex matching several `Species`
+patterns can contribute once for each pattern. In the example,
+`Roverlap =` `{python} f'{initial.observables["Roverlap"][0]:g}'`, since a
+ligand-bound phosphorylated receptor contributes to both patterns.
+Use disjoint patterns or an expression with an overlap correction when
+the desired measurement is a union of sets.
+
+## Reaction rules and graph changes {#sec-bngl-rules}
+
+A reaction rule gives reactant patterns, an arrow, product patterns, and a
+rate law. An optional label precedes the reactants.
+
+| Rule form | Rate-law entries |
+|---|---|
+| `label: reactants -> products k` | One forward rate law |
+| `label: reactants <-> products kf,kr` | Forward and reverse rate laws |
+| `0 -> A() ks` | Source with no molecular reactant |
+| `A() -> 0 kd` | Deletion |
+| `A() -> A() + B() ks` | Template-dependent production of `B` |
+| `A(x) + B(y) <-> A(x!1).B(y!1) kon,koff` | Intermolecular association and dissociation |
+| `A(Y~u) -> A(Y~p) kp` | Internal-state change |
+
+The plus sign separates reactant or product species patterns. Each
+occurrence represents a species instance. Thus `A() + A()` requests two
+reactant instances, while a dotted pattern can select molecules within
+one complex. Intracomplex bond formation can be represented with a dotted
+reactant pattern selecting components already in the same complex.
+
+On the product side, BioNetGen changes the molecular properties named by
+the rule and retains the surrounding molecular context. When a new molecule is created,
+the product must specify the components and internal states needed to
+identify it. With repeated molecule types or an ambiguous transformation,
+use consistent molecule tags on both sides and inspect the generated
+reactions to check the correspondence.
+
+Rules that overlap contribute additional reaction channels. A more
+specific rule does not automatically replace a general rule matching the
+same molecules. Partition contexts if different rates are intended for
+mutually exclusive cases.
+
+### Deletion and rule modifiers {#sec-bngl-modifiers}
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "deletion", "begin reaction rules", "end reaction rules")
+```
+
+For a bound `R`–`L` seed complex, `LoseComplex` removes the entire complex.
+`LoseReceptor` removes the matched receptor and its incident bond, leaving
+the ligand as a free molecule. `DeleteMolecules` is therefore needed when
+unmentioned partners should survive deletion. A rule that explicitly
+retains a partner on the product side can also specify that survival.
+
+| Modifier | Meaning and scope |
+|---|---|
+| `DeleteMolecules` | Delete specified molecules while retaining unmentioned partners, which can become separate product species |
+| `MoveConnected` | A transported molecule carries connected, unmentioned molecules in its original compartment |
+| `TotalRate` | NFsim interprets a global functional rate as a total rule rate; see @sec-bngl-functional for the tested network behavior |
+| `include_reactants(i,pattern)` | Require a matching pattern in the whole species selected by reactant position `i` |
+| `exclude_reactants(i,pattern)` | Reject a matching pattern in that reactant species |
+| `include_products(i,pattern)` | Apply an inclusion filter to the generated product species at position `i` |
+| `exclude_products(i,pattern)` | Apply an exclusion filter to that product species |
+
+Modifiers follow the rate law. Positions in the filter arguments begin at
+one and refer to the plus-separated patterns. Keep filter argument lists
+free of spaces, as in `exclude_reactants(1,R(l!+))`. A filter examines the
+whole selected species, so in a multireceptor complex it may find a
+different receptor from the one transformed by the rule. Explicit local
+context is preferable when the requirement concerns the reacting receptor.
+
+The parser also accepts `priority=value`. Rule priority is used in
+specialized workflows and should not be interpreted as a general override
+of overlapping kinetic rules across simulators.
+
+## Functions and rate-law conventions {#sec-bngl-functional}
+
+A global function has the form `name() = expression`. It can use
+parameters, observables, other functions, and simulation time. Calling
+that function as a rule's rate law ordinarily supplies a rate coefficient:
+the generated reaction still multiplies the function by its reactant
+amounts and statistical factors.
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "functional_rates", "begin functions", "end reaction rules")
+```
+
+For `Coefficient`, the reaction flux is `rate()*Atotal`. Since the seed
+amount of `A` is fixed, the example has a constant coefficient and a
+constant source of `B`. `SourceFlux` has no reactant multiplier, so its
+flux is `rate()`.
+
+::: {.callout-note}
+## `TotalRate` depends on the simulation backend
+
+In NFsim, `TotalFlux` uses `rate()` as a total rule rate. In the tested
+network export, `TotalFlux` and `Coefficient` receive the same functional
+coefficient in the `.net` file, and the ODE simulation multiplies both
+by `Atotal`. The native ODE run therefore gives
+`Btotal =` `{python} f'{fd["Btotal"][-1]:g}'`,
+`Ctotal =` `{python} f'{fd["Ctotal"][-1]:g}'`, and
+`Dtotal =` `{python} f'{fd["Dtotal"][-1]:g}'` at its final time.
+
+For a network-based source whose flux is a function of an observable,
+use `0 -> product function()`, as in `SourceFlux`. When a rule also
+consumes reactants, derive a rate coefficient that gives the intended
+flux and remains defined over the reachable states. The parser rejects
+`TotalRate` combined with a local function or `Arrhenius` law.
+:::
+
+### Local functions and tags
+
+A local function takes a reference to a matched complex or molecule.
+Within that function, `Observable(x)` evaluates the observable with the
+scope or root specified by `x`.
+
+| Tag | Reference |
+|---|---|
+| `%x:R()` | The whole complex matched by this species pattern |
+| `%x@membrane:R()` | The whole complex, with a species-level compartment constraint |
+| `R%x()` | The particular matched receptor molecule |
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "local_complex", "begin functions", "end reaction rules")
+show_lines("appendix_b", "local_molecule", "Phos:", comments=False)
+```
+
+In both files, `Bound` is the motif `R(l!1).L(r!1)` and the seed complex
+contains a dimer with ligand on one receptor. The species-level tag lets
+each reacting receptor see the bound motif anywhere in that complex.
+The molecule-level tag roots the observable match at the tagged receptor,
+so the unbound receptor receives the base rate and the bound receptor
+receives the enhanced rate. A molecule reference therefore imposes more
+than a restriction to the containing complex; the observable's root must
+match that molecule.
+
+`FunctionProduct("f(x)","g(y)")` provides a specialized product of local
+functions on separate reactants for network-free models. Keep each factor
+dependent on its own reactant reference and check support in the selected
+simulator. For ordinary network generation, many local expressions expand
+to reaction-specific coefficients once each reactant species is known.
+
+### Specialized network rate laws
+
+The parser retains built-in rate forms used by older models:
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "specialized_rates", "begin reaction rules", "end reaction rules")
+```
+
+| Form | Convention for the illustrated unit-stoichiometry reaction |
+|---|---|
+| `Sat(v,K)` | $v[A]/(K+[A])$ for the first reactant; additional reactants multiply the rate |
+| `Hill(v,K,n)` | $v[B]^n/(K^n+[B]^n)$ for the first reactant; additional reactants multiply the rate |
+| `MM(kcat,K)` | Substrate first, enzyme second; uses a free-substrate estimate from total substrate and enzyme |
+
+`MM` has a specific total-substrate convention, so substituting a familiar
+Michaelis–Menten formula without checking the represented pools can change
+the kinetics. A `Sat` law can have further saturation constants associated
+with subsequent reactants. These forms refer to explicit generated
+reactant species, which can differ from a saturation function of a pooled
+observable. They are also less portable across simulators and exporters
+than explicit functions. State the intended flux mathematically before
+translating a specialized form to a functional coefficient.
+
+## Compartments and transport {#sec-bngl-compartments}
+
+Each compartment line has the form `name dimension size [outside]`.
+The dimension is `3` for a volume or `2` for a surface compartment;
+`outside` names its enclosing compartment. BioNetGen uses the containment
+tree to check bonds and transport between neighboring locations.
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "compartments", "begin compartments", "end compartments")
+show_bngl("appendix_b", "compartments", "begin seed species", "end reaction rules")
+```
+
+`@inside:A()` sets a species-level compartment, while `A()@inside`
+specifies the molecule's compartment. A pattern can also specify molecule
+locations within a complex that spans adjacent compartments. The
+containment tree restricts which cross-compartment bonds are allowed.
+
+Compartmental rates can acquire volume conversion factors, and a surface
+compartment's size is used with BioNetGen's compartment convention.
+Record whether a membrane size represents an effective volume, for example
+surface area times an assigned width, and keep its units consistent with
+the amount convention. Dimension `2` alone does not supply that width.
+
+For transport, a species-level location change can move a matched complex
+according to the compartment rules. A molecule-level location change
+selects the named molecule; `MoveConnected` specifies how unmentioned
+connected molecules in its original compartment accompany it. Check
+the generated products for complexes spanning several compartments,
+since movement can change the allowed topology.
+
+## Energy patterns {#sec-bngl-energy}
+
+An energy-pattern line has the form `pattern energy_expression`. Its
+contribution is multiplied by the number of occurrences of the pattern,
+with pattern symmetry accounted for, and added to the species energy.
+The energies used by `Arrhenius` are dimensionless free energies.
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "energy_binding", "begin energy patterns", "end reaction rules")
+```
+
+`Arrhenius(phi,Ea)` supplies both directions of a reversible rule, so it
+has no second comma-separated reverse rate law. For an energy difference
+$\Delta g$, the numerical coefficients are
+
+$$
+k_+=e^{-E_a-\phi\Delta g},\qquad
+k_-=e^{-E_a+(1-\phi)\Delta g}.
+$$
+
+The energy difference fixes their ratio, while `Ea` sets the kinetic scale
+and `phi` allocates the energy change between the directions. Association
+energies require a concentration reference, and the rates require a time
+reference. In this example `gbind = ln(KD/Cref)` uses the micromolar
+reference recorded in the file. The parameter `Cref` is part of that
+expression; it does not independently request a unit conversion from
+BioNetGen. The older `setOption("energyBNG",1)` command is deprecated
+because energy-pattern syntax is enabled by default in the tested release.
+
+## Network generation {#sec-bngl-network}
+
+`generate_network({options})` iteratively applies the rules to the seed
+species and newly generated species. It writes an enumerated `.net`
+file when network generation succeeds.
+
+| Option | Purpose |
+|---|---|
+| `overwrite=>1` | Allow an existing output network to be replaced |
+| `max_iter=>value` | Limit successive rounds of rule application |
+| `max_agg=>value` | Limit the total number of molecules in a generated species |
+| `max_stoich=>{R=>value,L=>value}` | Limit the number of each named molecule type in a generated species |
+| `check_iso=>1` | Check molecular graph isomorphism when identifying species |
+| `prefix=>"name"`, `suffix=>"name"` | Control output names |
+
+An aggregate or stoichiometry limit changes which species and reactions
+are included. It therefore defines a truncated model whose predictions
+require a convergence check as the limit is increased. An iteration limit
+can also stop enumeration before the network closes. For a model with
+unbounded polymerization, network-free simulation avoids enumeration of
+the complete species set.
+
+The generated network contains indexed parameters, functions, species,
+reactions, and observable groups. A reaction's comment identifies its
+originating rule. Its coefficient may contain a statistical factor for
+equivalent sites or identical reactants. Compare the generated elementary
+rate with the intended event rate before interpreting a rule parameter
+as a macroscopic association or dissociation constant.
+
+## Simulation actions {#sec-bngl-simulators}
+
+An action uses the form `simulate({method=>"method",options})`.
+
+| Method | Simulation |
+|---|---|
+| `"ode"` | Deterministic ODE integration of an enumerated network |
+| `"ssa"` | Stochastic simulation of an enumerated network |
+| `"pla"` | Partitioned-leaping approximation for a network |
+| `"psa"` | Partial-scaling approximate stochastic network simulation |
+| `"nf"` | NFsim simulation directly from the rule-based model |
+
+For network methods, generate the network before simulating. NFsim uses
+the molecular types, rules, and seeds exported to XML and can run without
+`generate_network()`. An NFsim input must satisfy the simulator's feature
+requirements; accepting a file in the BNGL parser does not establish
+support for every rate law.
+
+| Option | Meaning and applicability |
+|---|---|
+| `t_start`, `t_end` | Requested time interval; use an explicit start in multistage protocols |
+| `n_steps` | Number of output intervals, with the initial point also reported |
+| `sample_times=>[times]` | Requested output times; use this instead of `n_steps` |
+| `atol`, `rtol` | Absolute and relative tolerances for ODE integration |
+| `sparse=>1` | Sparse linear algebra for the ODE solver |
+| `seed=>integer` | Random seed for stochastic methods |
+| `suffix=>"name"` | Distinguish output files from separate runs |
+| `continue=>1` | Append a network-simulation continuation using its current state and time; retain the same output prefix |
+| `print_functions=>1` | Request global-function output |
+| `steady_state=>1` | Enable the network ODE solver's steady-state stopping criterion |
+| `get_final_state=>1` | Request the final NFsim state, including molecular species output |
+
+Output intervals are observation intervals, not the internal integration
+steps or stochastic event times. Specifying `n_steps` together with
+`sample_times` gives precedence to `n_steps` and produces a warning.
+Use distinct suffixes for independent runs and reset the molecular amounts
+between them. Set `t_start` explicitly when switching to NFsim after a
+previous simulation; NFsim otherwise uses the model's current time.
+NFsim reports elapsed time and rejects `continue=>1` in the tested release.
+
+For reproducible stochastic runs, record the simulator version and seed.
+The same seed in SSA and NFsim does not imply the same trajectory, since
+the algorithms sample different event representations.
+
+## Parameter changes, protocols, and scans {#sec-bngl-protocols}
+
+| Action | Effect |
+|---|---|
+| `setParameter("name","expression")` | Change a defined parameter |
+| `setConcentration("complete_species","expression")` | Set the amount of an existing species |
+| `addConcentration("complete_species","expression")` | Add to its current amount |
+| `saveParameters("label")` | Save current parameter definitions under a label |
+| `resetParameters("label")` | Restore those saved definitions |
+| `saveConcentrations("label")` | Save the current species amounts |
+| `resetConcentrations("label")` | Restore the saved amounts |
+| `resetConcentrations()` | Restore default seed amounts |
+| `setVolume("compartment","expression")` | Change a declared compartment size |
+
+Species addressed by concentration actions must already exist in the
+species list; an action does not create a missing species definition.
+Changing a seed parameter after simulation and restoring seed amounts
+is distinct from directly setting the current amount. Parameter and
+concentration saves are separate, so restore both when an experiment
+changes both. A concentration reset also leaves time management to the
+simulation action; specify the intended start explicitly.
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "actions", 'saveConcentrations("start")',
+          'resetParameters("rates")')
+```
+
+`parameter_scan` runs a sequence of parameter values and records the
+final observables for each value:
+
+```{python}
+#| output: asis
+#| echo: false
+show_lines("appendix_b", "actions", "parameter_scan(", comments=False)
+```
+
+| Scan option | Purpose |
+|---|---|
+| `parameter=>"name"` | Defined parameter to vary |
+| `par_min`, `par_max`, `n_scan_pts` | Endpoints and number of scan values |
+| `log_scale=>1` | Logarithmic spacing; endpoints must be positive |
+| `par_scan_vals=>[values]` | Explicit values instead of a regularly spaced range |
+| `reset_conc=>1` | Start scan points from the saved starting amounts |
+| `reset_conc=>0` | Carry final amounts into the next point |
+| `method`, `t_end`, `n_steps` | Simulation options used at each scan point |
+
+Independent dose-response scans and scans that carry state between points
+answer different questions, particularly in models with multiple stable
+states. Restore parameters after a scan if subsequent actions require the
+original values. `bifurcate` automates increasing and decreasing scans
+with carried state; its result still depends on sufficient relaxation at
+each point.
+
+`readFile({file=>"model.bngl"})` reads another BNGL file;
+`readFile({file=>"network.net"})` reads a generated network. Relative
+paths are interpreted within the execution environment, so keep supporting
+files with a documented run directory. SBML import is a separate translation
+workflow and can require additional Atomizer dependencies.
+
+## Exports, visualization, and output files {#sec-bngl-output}
+
+```{python}
+#| output: asis
+#| echo: false
+show_bngl("appendix_b", "actions", "writeModel(")
+```
+
+| Action | Representation written |
+|---|---|
+| `writeModel()` | BNGL model definition |
+| `writeNetwork()` | Enumerated `.net` reaction network |
+| `writeXML()` | BioNetGen's rule-based XML, including NFsim input |
+| `writeSBML()` | SBML representation of the reaction network |
+| `writeSBMLMulti()` | Structured SBML Multi export, with feature-dependent support |
+| `writeMfile()` | MATLAB simulation code |
+| `writeMexfile()` | MATLAB interface and C source for a compiled solver |
+| `writeMDL()` | MCell-oriented export for supported models |
+| `visualize({type=>"contactmap"})` | Molecule types, components, and possible bonds |
+| `visualize({type=>"ruleviz_pattern"})` | Reactant and product patterns of rules |
+| `visualize({type=>"ruleviz_operation"})` | Graph operations performed by rules |
+| `visualize({type=>"regulatory"})` | Relationships between rules and their structural requirements |
+
+Most writers accept output-name options such as `suffix`. Visualization
+writes graph files for a separate layout program. Regulatory graphs can
+use options including `groups`, `collapse`, and an `opts` file defining
+user groupings. An exporter may require network generation or reject
+constructs it cannot represent. `writeXML` and `writeSBML` both write XML
+files but encode different model representations; use distinct suffixes
+when requesting both.
+
+| Extension | Contents |
+|---|---|
+| `.bngl` | Rule-based model and requested actions |
+| `.net` | Enumerated species, reactions, functions, and observable weights |
+| `.gdat` | Time and observable values, usually with a `#` header |
+| `.cdat` | Time and individual network-species amounts |
+| `.fdat` | Global function values when written separately by a network backend; some backends append them to `.gdat` |
+| `.species` | Final molecular species and counts from NFsim |
+| `.scan` | Parameter values and final observables from a scan |
+| `.graphml`, `.gml` | Graph representations produced by visualization; the tested contact-map export uses GraphML |
+
+Read the header to identify output columns; species indices can change
+when a model is edited or its network is regenerated. Use observables
+with stable names for analyses that compare model versions.
+
+## Diagnosing syntax and execution errors
+
+| Symptom | Check |
+|---|---|
+| Undefined parameter or function | Spelling, case, definition order, and parentheses on function calls |
+| Missing component or internal state in a seed | Write a complete species consistent with its molecule type |
+| Illegal bond wildcard in a seed | Replace pattern wildcards with a specified bond or an unbound component |
+| Unmatched bond endpoint | Each explicit bond label must identify both endpoints within the expression |
+| Missing reverse rate law | Supply both coefficients for `<->`, except when using `Arrhenius` |
+| Species not found in a concentration action | Generate the species or include it as a seed before addressing it |
+| Unexpected receptor or complex count | Compare `Molecules` with `Species` and check overlapping patterns |
+| Unexpected rate multiplicity | Inspect equivalent sites, repeated reactants, local-function scope, and generated statistical factors |
+| No network closure | Check for unbounded aggregation or an iteration limit |
+| Simulation interval error | Check the current time and supply explicit `t_start` and `t_end` |
+| Unrecognized action option | Check the spelling and the options accepted by the selected method |
+
+Parser errors identify the file and line being read. Reduce the failing
+rule or pattern to a small executable model before changing the full
+model; the examples in this appendix provide starting points for checking
+matching, counting, and rate semantics.
+
+## Additional language constructs and source locations
+
+Population molecule types, `population maps`, and
+`generate_hybrid_model` support hybrid particle/population workflows.
+They require a deliberate mapping between particle structures and
+population variables. Time-indexed tabular functions, including `tfun`
+in newer source snapshots, also have version-dependent syntax and
+backend support. Those specialized workflows should be checked against
+the distribution being used rather than inferred from a parser keyword.
+
+The implementation files provide the detailed reference for less common
+constructs. All links below point to the source snapshot used for this
+draft.
+
+- [Model blocks and core actions](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/bng2/Perl2/BNGModel.pm)
+  define file processing, network generation, and parameter changes.
+- [Molecular graphs](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/bng2/Perl2/SpeciesGraph.pm)
+  and [components](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/bng2/Perl2/Component.pm)
+  define pattern syntax and graph attributes.
+- [Observables](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/bng2/Perl2/Observable.pm)
+  define counting and quantifiers.
+- [Reaction rules](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/bng2/Perl2/RxnRule.pm)
+  and [rate laws](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/bng2/Perl2/RateLaw.pm)
+  define transformations and rate modifiers.
+- [Expressions](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/bng2/Perl2/Expression.pm)
+  define mathematical operators and built-in functions.
+- [Simulation actions](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/bng2/Perl2/BNGAction.pm)
+  define method options, protocols, and scans.
+
+The [upstream quick-reference guide](https://github.com/RuleWorld/bionetgen/blob/9601746f8884ed19ab2acea49fe87fc4660ace46/docs/assets/QRG-30Mar2016.pdf)
+provides earlier examples of the language. Its installation instructions
+and some simulator details reflect the release available when it was
+written.

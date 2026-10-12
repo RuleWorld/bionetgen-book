@@ -24,9 +24,11 @@ book:
         - chapters/05-compartments.qmd
         - chapters/06-network-free.qmd
         - chapters/07-analysis.qmd
+        - chapters/08-energy-modeling.qmd
     - references.qmd
   appendices:
     - appendices/a-installation.qmd
+    - appendices/b-bngl-reference.qmd
 
 bibliography: references.bib
 syntax-definitions:
