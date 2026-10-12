@@ -17,7 +17,6 @@ in [BOOK_PLAN.md](BOOK_PLAN.md).
 | `chapters/`, `index.qmd`, `appendices/` | Book chapters ([Quarto](https://quarto.org) Markdown with executable Python) |
 | `models/` | BNGL models, by chapter |
 | `notebooks/` | Jupyter notebooks for exercises |
-| `slides/` | Lecture slides (beamer), one deck per chapter, and the shared theme |
 | `worksheets/` | Printable exercises (answer keys are kept separately) |
 | `figures/` | Diagrams; `figures/tikz/` holds their sources |
 | `scripts/` | Build helpers |
@@ -26,6 +25,10 @@ in [BOOK_PLAN.md](BOOK_PLAN.md).
 Every figure and number in the book is produced by running the models, using
 [bngsim](https://bngsim.readthedocs.io). A GitHub Actions workflow tests all
 models and rebuilds the book on every push to `main`.
+
+Lecture slides for the course built on Chapters 1 and 2 live in the course
+repository, [jrfaeder/RBM_Intro_BioNetGen](https://github.com/jrfaeder/RBM_Intro_BioNetGen).
+Slides derived from the chapters are planned.
 
 ## Building locally
 
@@ -40,10 +43,9 @@ quarto preview                       # live preview while editing
 Other builds:
 
 - Diagrams: `scripts/make_tikz_figures.sh` (needs a TeX installation and poppler)
-- Slides: `slides/build.sh` (needs a TeX installation)
 - Worksheets: `worksheets/build.sh` (needs pandoc and Google Chrome)
 
 ## License
 
-Text, figures, and slides: [CC BY 4.0](LICENSE-TEXT.txt). Code and models:
+Text and figures: [CC BY 4.0](LICENSE-TEXT.txt). Code and models:
 [MIT](LICENSE-CODE.txt). See [LICENSE.md](LICENSE.md).

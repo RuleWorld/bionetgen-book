@@ -342,7 +342,9 @@ and Jupyter notebooks:
   numbered cross-references.
 - **BNGL syntax highlighting** through a small custom syntax file.
 - **Slides stay in beamer** with the existing theme, because that is your
-  standard. They reuse the book's figures and models.
+  standard. The course slides for Modules 1 and 2 live in the course
+  repository (decided October 12, 2026); slides derived from the chapters,
+  reusing the book's figures and models, are a later step.
 
 The alternative is Jupyter Book 2 (MyST). Its notebook-first design is good,
 but its PDF output is less mature, and the PDF matters for a book.
@@ -351,7 +353,7 @@ but its PDF output is less mature, and the PDF matters for a book.
 
 - run all models;
 - execute all notebooks;
-- build the book and the slides.
+- build the book.
 
 **Answer keys** need a private home, such as a separate private repository,
 because the book repository will be public.
@@ -359,14 +361,14 @@ because the book repository will be public.
 ## Repository
 
 **This repository, `RuleWorld/bionetgen-book`**, holds the book, models,
-notebooks, slides, and worksheets. The MSCBIO course repository (`jrfaeder/RBM_Intro_BioNetGen`) remains the
-course page and links to the book.
+notebooks, and worksheets. The MSCBIO course repository
+(`jrfaeder/RBM_Intro_BioNetGen`) remains the course page, holds the course
+slides, and links to the book.
 
 ```
 book/            Quarto chapters (.qmd) and _quarto.yml
 models/          BNGL models, organized by chapter
 notebooks/       executable notebooks used by chapters and exercises
-slides/          beamer theme and one deck per chapter
 worksheets/      printable worksheets (keys live in a private repo)
 references.bib   bibliography
 tests/           model and notebook checks run in CI
