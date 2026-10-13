@@ -163,9 +163,9 @@ variety of ways, some intentional and some not. Vincent Danos independently
 envisioned rule-based modeling as a solution to the problem of
 combinatorial complexity, and his work inspired, directly and indirectly,
 many of the subsequent developments in BioNetGen. He and his
-collaborators in developing the Kappa language, including Jean Krivine and
-Jérôme Feret, made major contributions to the theory and applications of
-rule-based modeling [@Danos2007].
+collaborators in developing the Kappa language, including Jérôme Feret,
+Russell Harmer, and Jean Krivine, made major contributions to the theory and
+applications of rule-based modeling [@Danos2007Rules; @Danos2007; @Feret2009].
 
 Development of BioNetGen has been supported by the National Institutes of
 Health, through the National Center for Multiscale Modeling of Biological
