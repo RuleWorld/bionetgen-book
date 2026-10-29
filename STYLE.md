@@ -106,6 +106,7 @@ From the R01 `STYLE.md` table, the tells that apply to textbook prose:
 | 13 | Unresolved demonstrative at the start of a paragraph or caption ("This is…") | Name the referent. |
 | 14 | Overloaded compound sentence chaining several results | One claim per sentence. |
 | 15 | Consecutive sentences ending on the same weak pronoun ("…it." "…it.") | Name the thing. |
+| 16 | Compound sentence of three or more independent clauses, each with its own subject and verb, strung together with commas and a final "and" ("A is true, B is false, and C is a simulation pipeline we developed"). The longer each clause, the harder the reader finds it to see how the clauses connect. | Split into separate sentences, or subordinate all but one clause ("because," "since," "which," "while"). Keep the form only when the clauses are short and the sentence exists to emphasize a clear connection among them. One subject with three or more verbs ("BioNetGen reads the rules, generates the network and writes the `.net` file") is fine, because the shared subject ties the actions together. Two independent clauses joined by "and" or "but", and a list of noun phrases inside one clause, are also fine. |
 
 From the `avoid-ai-writing` skill catalog, also watch for:
 
